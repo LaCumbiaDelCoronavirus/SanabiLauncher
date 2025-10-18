@@ -35,12 +35,15 @@ public static class LauncherPaths
     public static readonly string PathContentDb = Path.Combine(DirLocalData, "content.db");
     public static readonly string PathOverrideAssetsDb = Path.Combine(DirLocalData, "override_assets.db");
 
+    public static readonly string SanabiDirPath = Path.Combine(DirUserData, "sanabi");
+
     public static void CreateDirs()
     {
         Ensure(DirLogs);
         Ensure(DirLocalData);
         Ensure(DirEngineInstallations);
         Ensure(DirModuleInstallations);
+        Ensure(SanabiDirPath);
 
         static void Ensure(string path) => Helpers.EnsureDirectoryExists(path);
     }

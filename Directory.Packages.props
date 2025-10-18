@@ -46,5 +46,7 @@
     <PackageVersion Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3"/>
     <!-- Development -->
     <PackageVersion Include="HotAvalonia" Version="3.0.0" />
+    <!-- Sanabi -->
+    <PackageVersion Include="Lib.Harmony" Version="2.4.1" />
   </ItemGroup>
 </Project>
