@@ -6,6 +6,7 @@
              xmlns:loc="clr-namespace:SS14.Launcher.Localization"
              xmlns:v="clr-namespace:SS14.Launcher.Views"
              xmlns:mwt="clr-namespace:SS14.Launcher.Views.MainWindowTabs"
+             xmlns:style="clr-namespace:Avalonia.Styling;assembly=Avalonia.Base"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SS14.Launcher.Views.MainWindowTabs.HomePageView">
   <Design.DataContext>
@@ -20,13 +21,25 @@
       <Button DockPanel.Dock="Left" Classes="OpenRight"
               Content="{loc:Loc tab-home-direct-connect}"
               Command="{Binding DirectConnectPressed}" />
-      <Button DockPanel.Dock="Left" Classes="OpenLeft"
+      
+      <!-- replay button; yes, this is kinda evil -->
+      <Button IsVisible="{Binding !FavoritesEmpty}" DockPanel.Dock="Left" Classes="OpenLeft"
               Content="{loc:Loc tab-home-run-content-bundle}"
               Click="OpenReplayClicked" />
+      <Button IsVisible="{Binding FavoritesEmpty}" DockPanel.Dock="Left" Classes="OpenBoth"
+              Content="{loc:Loc tab-home-run-content-bundle}"
+              Click="OpenReplayClicked" />
+
+      <Button DockPanel.Dock="Left" IsVisible="{Binding FavoritesEmpty}" Classes="OpenLeft" Content="{loc:Loc tab-home-go-to-servers-tab}"
+              Command="{Binding MainWindowViewModel.SelectTabServers}" />
 
       <Button DockPanel.Dock="Right" Classes="OpenLeft" Command="{Binding AddFavoritePressed}"
               ToolTip.Tip="{loc:Loc tab-home-add-favorite}">
         <v:IconLabel Icon="{DynamicResource ButtonIcon-plus}" Height="20" Width="20" />
+      </Button>
+      <!-- TODO: Fix icon being cut off -->
+      <Button DockPanel.Dock="Right" Classes="OpenBoth" Command="{Binding ToggleFavoritesListVisible}" IsEnabled="{Binding !FavoritesEmpty}">
+        <v:IconLabel Icon="{DynamicResource ButtonIcon-vv}" Height="20" Width="13" /> 
       </Button>
       <Button DockPanel.Dock="Right" Classes="OpenRight" Command="{Binding RefreshPressed}"
               ToolTip.Tip="{loc:Loc tab-home-refresh}">
@@ -35,9 +48,13 @@
     </DockPanel>
 
     <Panel>
-      <mwt:ServerList List="{Binding Favorites}" IsVisible="{Binding !FavoritesEmpty}">
-        <Button Content="{loc:Loc tab-home-go-to-servers-tab}"
-                Command="{Binding MainWindowViewModel.SelectTabServers}" />
+      <mwt:ServerList List="{Binding Favorites}">
+        <mwt:ServerList.IsVisible>
+          <MultiBinding Converter="{x:Static BoolConverters.And}">
+            <Binding Path="!FavoritesEmpty" />
+            <Binding Path="FavoritesListVisible" />
+          </MultiBinding>
+        </mwt:ServerList.IsVisible>
       </mwt:ServerList>
 
       <!--

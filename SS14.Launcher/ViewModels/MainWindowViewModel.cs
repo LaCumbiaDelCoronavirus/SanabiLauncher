@@ -93,6 +93,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
                 }
                 else
                 {
+                    RunDeselectedOnTab();
                     LoginViewModel.SwitchToLogin();
                 }
             });
@@ -127,13 +128,21 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         get => _selectedIndex;
         set
         {
-            var previous = Tabs[_selectedIndex];
-            previous.IsSelected = false;
-
+            RunDeselectedOnTab();
             this.RaiseAndSetIfChanged(ref _selectedIndex, value);
 
             RunSelectedOnTab();
         }
+    }
+
+    private void RunDeselectedOnTab()
+    {
+        var tab = Tabs[_selectedIndex];
+        tab.IsSelected = false;
+
+        // if we're deselecting the home tab, dont show transitioning images
+        if (tab == HomeTab)
+            TransitioningImagesVisible = false;
     }
 
     private void RunSelectedOnTab()

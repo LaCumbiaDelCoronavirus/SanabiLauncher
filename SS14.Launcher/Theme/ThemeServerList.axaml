@@ -3,11 +3,11 @@
         xmlns:loc="clr-namespace:SS14.Launcher.Localization"
         xmlns:views="using:SS14.Launcher.Views"
         xmlns:mwt="using:SS14.Launcher.Views.MainWindowTabs">
-  <Style Selector="ItemsControl.ServerList > ContentPresenter:nth-child(2n)">
+  <!-- <Style Selector="ItemsControl.ServerList > ContentPresenter:nth-child(2n)">
     <Setter Property="Background">
       <SolidColorBrush Color="#262626" />
     </Setter>
-  </Style>
+  </Style> -->
 
   <Style Selector="Border.GridCell">
     <Setter Property="BorderBrush">
@@ -70,9 +70,9 @@
           <Panel DockPanel.Dock="Top" Classes="ScrollViewerSep" IsVisible="{TemplateBinding ShowHeader}" />
 
           <Panel>
-            <Panel.Background>
+            <!-- <Panel.Background>
               <SolidColorBrush Color="#1e1e22" />
-            </Panel.Background>
+            </Panel.Background> -->
             <ScrollViewer MinHeight="150" HorizontalScrollBarVisibility="Disabled"
                           VerticalScrollBarVisibility="Auto">
               <DockPanel LastChildFill="True">

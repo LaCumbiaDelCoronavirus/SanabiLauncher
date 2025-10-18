@@ -14,6 +14,7 @@ using SS14.Launcher.Models.Data;
 using SS14.Launcher.Models.ServerStatus;
 using SS14.Launcher.Utility;
 using SS14.Launcher.Views;
+using ReactiveUI;
 
 namespace SS14.Launcher.ViewModels.MainWindowTabs;
 
@@ -40,7 +41,8 @@ public class HomePageViewModel : MainWindowTabViewModel
                     _statusCache.InitialUpdateStatus(a.CacheData);
                 }
             })
-            .Sort(Comparer<ServerEntryViewModel>.Create((a, b) => {
+            .Sort(Comparer<ServerEntryViewModel>.Create((a, b) =>
+            {
                 var dc = a.Favorite!.RaiseTime.CompareTo(b.Favorite!.RaiseTime);
                 if (dc != 0)
                 {
@@ -121,5 +123,20 @@ public class HomePageViewModel : MainWindowTabViewModel
             _statusCache.InitialUpdateStatus(favorite.CacheData);
         }
         _serverListCache.RequestInitialUpdate();
+    }
+
+    private bool _favoritesListVisible = true;
+    public bool FavoritesListVisible
+    {
+        get => _favoritesListVisible;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _favoritesListVisible, value);
+        }
+    }
+
+    public async void ToggleFavoritesListVisible()
+    {
+        FavoritesListVisible = !FavoritesListVisible;
     }
 }

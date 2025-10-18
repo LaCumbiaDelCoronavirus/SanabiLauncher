@@ -19,6 +19,7 @@ public static class IconsLoader
         ("button-icons/plus.png", "ButtonIcon-plus"),
         ("button-icons/star.png", "ButtonIcon-star"),
         ("button-icons/star-outline.png", "ButtonIcon-star-outline"),
+        ("button-icons/vv.png", "ButtonIcon-vv"),
     };
 
     public static void Load(App app)
