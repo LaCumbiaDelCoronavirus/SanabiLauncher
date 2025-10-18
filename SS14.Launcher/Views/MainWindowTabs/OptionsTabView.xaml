@@ -23,6 +23,10 @@
       <Button Content="{loc:Loc tab-options-open-log-directory}" DockPanel.Dock="Bottom" HorizontalAlignment="Left"
               Command="{Binding OpenLogDirectory}"/>
 
+      <TextBlock DockPanel.Dock="Top" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"
+                 Text="Did you know?
+You can put images in 'SS14 Data folder -> launcher -> sanabi -> screens', and they will show up here. Images only, nothing else or the launcher crashes."/>
+
       <StackPanel Orientation="Vertical">
         <views:LanguageSelector HorizontalAlignment="Left" Margin="4" DataContext="{Binding Language}"
                                 Placement="BottomEdgeAlignedLeft" />

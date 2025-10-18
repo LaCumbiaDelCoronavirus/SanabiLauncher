@@ -14,10 +14,6 @@
 
   <Panel>
     <Grid IsVisible="{Binding TransitioningImagesVisible}" x:Name="ImageTransitionGrid">
-      <TextBlock DockPanel.Dock="Top" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"
-                 Text="Did you know?
-You can put images in SS14 Data folder -> launcher -> sanabi -> screens, and they will show up here. Images only, nothing else or the launcher crashes."/>
-
       <TransitioningContentControl x:Name="ImageTransition"
                                   HorizontalAlignment="Stretch"
                                   VerticalAlignment="Stretch"
