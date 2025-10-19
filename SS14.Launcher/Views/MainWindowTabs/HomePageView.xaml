@@ -37,7 +37,7 @@
       </Button>
       <!-- TODO: Fix icon being cut off -->
       <Button DockPanel.Dock="Right" Classes="OpenBoth" Command="{Binding ToggleFavoritesListVisible}" IsVisible="{Binding !FavoritesEmpty}">
-        <v:IconLabel Icon="{DynamicResource ButtonIcon-vv}" Height="20" Width="13" /> 
+        <v:IconLabel Icon="{DynamicResource ButtonIcon-vv}" Height="20" Width="20" /> 
       </Button>
       <Button DockPanel.Dock="Right" Classes="OpenRight" Command="{Binding RefreshPressed}" IsEnabled="{Binding !FavoritesEmpty}"
               ToolTip.Tip="{loc:Loc tab-home-refresh}">
