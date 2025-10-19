@@ -25,7 +25,7 @@
 
       <TextBlock DockPanel.Dock="Top" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"
                  Text="Did you know?
-You can put images in 'SS14 Data folder -> launcher -> sanabi -> screens', and they will show up here. Images only, nothing else or the launcher crashes."/>
+You can put (one or more) images in 'SS14 Data folder -> launcher -> sanabi -> screens', and they will show up on the homepage. Images only, nothing else or the launcher crashes."/>
 
       <StackPanel Orientation="Vertical">
         <views:LanguageSelector HorizontalAlignment="Left" Margin="4" DataContext="{Binding Language}"
