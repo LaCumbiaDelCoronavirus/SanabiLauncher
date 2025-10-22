@@ -137,8 +137,10 @@ public sealed class ServerListCache : ReactiveObject, IServerSource
             {
                 var statusData = new ServerStatusData(entry.Address, entry.HubAddress);
                 TimeSpan? roundTripTime = null;
+                /*
                 try
                 {
+                    // TODO: Do something not as trash as this
                     var (pingSuccess, maybeRoundTripTime) = await NetHelpers.TryPingIcmpAsync(entry.Address);
                     if (pingSuccess)
                         roundTripTime = maybeRoundTripTime;
@@ -148,7 +150,7 @@ public sealed class ServerListCache : ReactiveObject, IServerSource
                     SanabiLogger.LogError($"Exception! {ex}");
                     return statusData;
                 }
-
+                */
                 ServerStatusCache.ApplyStatus(statusData, entry.StatusData, roundTripTime);
                 return statusData;
             });

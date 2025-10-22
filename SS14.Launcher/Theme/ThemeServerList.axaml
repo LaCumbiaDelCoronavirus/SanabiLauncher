@@ -48,7 +48,7 @@
           <Grid DockPanel.Dock="Top" Margin="24 0 24 0" IsVisible="{TemplateBinding ShowHeader}">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" /> <!-- Server Name -->
-              <ColumnDefinition SharedSizeGroup="PingCol" MinWidth="80" Width="Auto" />
+              <!-- <ColumnDefinition SharedSizeGroup="PingCol" MinWidth="80" Width="Auto" /> -->
               <ColumnDefinition SharedSizeGroup="TimeCol" MinWidth="80" Width="Auto" />
               <ColumnDefinition SharedSizeGroup="StatusCol" MinWidth="80" Width="Auto" />
               <ColumnDefinition SharedSizeGroup="ConnectCol" Width="Auto" />
@@ -57,16 +57,16 @@
             <Border Grid.Column="0" Classes="GridCell">
               <TextBlock Text="{loc:Loc tab-servers-table-name}" Classes="SubText" />
             </Border>
-            <Border Grid.Column="1" Classes="GridCell">
+            <!-- <Border Grid.Column="1" Classes="GridCell">
               <TextBlock Text="Ping (Ms)" Classes="SubText" />
-            </Border>
-            <Border Grid.Column="2" Classes="GridCell">
+            </Border> -->
+            <Border Grid.Column="1" Classes="GridCell">
               <TextBlock Text="{loc:Loc tab-servers-table-round-time}" Classes="SubText Center" />
             </Border>
-            <Border Grid.Column="3" Classes="GridCell">
+            <Border Grid.Column="2" Classes="GridCell">
               <TextBlock Text="{loc:Loc tab-servers-table-players}" Classes="SubText Center" />
             </Border>
-            <Border Grid.Column="4" Classes="GridCell">
+            <Border Grid.Column="3" Classes="GridCell">
               <TextBlock Text="" Classes="SubText Center" />
             </Border>
           </Grid>

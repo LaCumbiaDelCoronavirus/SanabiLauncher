@@ -28,7 +28,7 @@
         <Grid>
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" /> <!-- Server Name -->
-            <ColumnDefinition SharedSizeGroup="PingCol" MinWidth="80" Width="Auto" />
+            <!-- <ColumnDefinition SharedSizeGroup="PingCol" MinWidth="80" Width="Auto" /> -->
             <ColumnDefinition SharedSizeGroup="TimeCol" MinWidth="80" Width="Auto" />
             <ColumnDefinition SharedSizeGroup="StatusCol" MinWidth="80" Width="Auto" />
             <ColumnDefinition SharedSizeGroup="ConnectCol" Width="Auto" />
@@ -41,17 +41,17 @@
           </Border>
 
           <!-- Ping -->
-          <Border Grid.Column="1" Classes="GridCell">
+          <!-- <Border Grid.Column="1" Classes="GridCell">
             <TextBlock Text="{Binding PingString}" TextAlignment="Left" Classes="Center" />
-          </Border>
+          </Border> -->
           <!-- Everything else -->
 
-          <Border Grid.Column="2" Classes="GridCell" Grid.ColumnSpan="2"
+          <Border Grid.Column="1" Classes="GridCell" Grid.ColumnSpan="2"
             IsVisible="{Binding !HaveData}">
             <TextBlock Text="{Binding ServerStatusString}" TextAlignment="Left" Classes="Center" />
           </Border>
 
-          <Border Grid.Column="2" Classes="GridCell" IsVisible="{Binding HaveData}">
+          <Border Grid.Column="1" Classes="GridCell" IsVisible="{Binding HaveData}">
             <Panel>
               <controls:TimerTextCell Value="{Binding RoundStartTime}"
                 IsVisible="{Binding RoundStatusString,Converter={x:Static StringConverters.IsNullOrEmpty}}" />
@@ -62,11 +62,11 @@
             </Panel>
           </Border>
 
-          <Border Grid.Column="3" Classes="GridCell" IsVisible="{Binding HaveData}">
+          <Border Grid.Column="2" Classes="GridCell" IsVisible="{Binding HaveData}">
             <TextBlock DockPanel.Dock="Right" Classes="Numeric" Text="{Binding PlayerCountString}" />
           </Border>
 
-          <Border Grid.Column="4" Classes="GridCell">
+          <Border Grid.Column="3" Classes="GridCell">
             <Button IsEnabled="{Binding IsOnline}" DockPanel.Dock="Right"
               Content="{loc:Loc server-entry-connect}"
               Command="{Binding ConnectPressed}" />
