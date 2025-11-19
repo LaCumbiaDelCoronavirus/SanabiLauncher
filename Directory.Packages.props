@@ -47,6 +47,6 @@
     <!-- Development -->
     <PackageVersion Include="HotAvalonia" Version="3.0.0" />
     <!-- Sanabi -->
-    <!-- <PackageVersion Include="Lib.Harmony" Version="2.4.1" /> -->
+    <PackageVersion Include="Lib.Harmony" Version="2.4.1" />
   </ItemGroup>
 </Project>

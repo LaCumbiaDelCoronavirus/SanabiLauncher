@@ -9,6 +9,6 @@
 
     <ItemGroup>
         <PackageReference Include="JetBrains.Annotations" />
-        <!-- <PackageReference Include="Lib.Harmony" /> -->
+        <PackageReference Include="Lib.Harmony" />
     </ItemGroup>
 </Project>
