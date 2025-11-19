@@ -92,6 +92,8 @@ public sealed class ServerEntryViewModel : ObservableRecipient, IRecipient<Favor
             {
                 case ServerStatusCode.Offline:
                     return _loc.GetString("server-entry-offline");
+                case ServerStatusCode.HostErr:
+                    return "DNS-ERR";
                 case ServerStatusCode.FetchingStatus:
                 case ServerStatusCode.Online:
                     return _loc.GetString("server-entry-fetching");

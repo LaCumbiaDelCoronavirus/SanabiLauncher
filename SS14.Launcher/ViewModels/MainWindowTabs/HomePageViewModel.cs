@@ -37,9 +37,7 @@ public class HomePageViewModel : MainWindowTabViewModel
             .OnItemAdded(a =>
             {
                 if (IsSelected)
-                {
                     _statusCache.InitialUpdateStatus(a.CacheData);
-                }
             })
             .Sort(Comparer<ServerEntryViewModel>.Create((a, b) =>
             {

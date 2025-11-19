@@ -56,6 +56,7 @@ public static class HappyEyeballsHttp
         SocketsHttpConnectionContext context,
         CancellationToken cancellationToken)
     {
+        var sanabi = Environment.StackTrace;
         // Get IPs via DNS.
         // Note that we do not attempt to exclude IPv6 if the user doesn't have IPv6.
         // According to the docs, GetHostEntryAsync will not return them if there's no address.
@@ -76,17 +77,26 @@ public static class HappyEyeballsHttp
 
         Debug.Assert(ips.Length > 0);
 
-        var (socket, index) = await ParallelTask(
-            ips.Length,
-            (i, cancel) => AttemptConnection(i, ips[i], endPoint.Port, cancel),
-            TimeSpan.FromMilliseconds(ConnectionAttemptDelay),
-            cancellationToken);
+        try
+        {
+            var (socket, index) = await ParallelTask(
+                ips.Length,
+                (i, cancel) => AttemptConnection(i, ips[i], endPoint.Port, cancel),
+                TimeSpan.FromMilliseconds(ConnectionAttemptDelay),
+                cancellationToken);
 
-        Log.Verbose("Successfully connected {EndPoint} to address: {Address}", endPoint, ips[index]);
+            Log.Verbose("Successfully connected {EndPoint} to address: {Address}", endPoint, ips[index]);
 
-        return new NetworkStream(socket, ownsSocket: true);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            Log.Fatal($"Totally failed to connect {endPoint} to any address; no valid ones were found.");
+            throw;
+        }
     }
 
+    /// <returns>Notnull value, if it actually worked. Returns a null task if we couldn't connect.</returns>
     private static async Task<Socket> AttemptConnection(
         int index,
         IPAddress address,
@@ -127,7 +137,6 @@ public static class HappyEyeballsHttp
                 exceptionToLog = null;
             }
 
-            Log.Verbose(exceptionToLog, "Happy Eyeballs to {Address} [{Index}] failed", address, index);
             socket.Dispose();
             throw;
         }
@@ -171,6 +180,9 @@ public static class HappyEyeballsHttp
         return result;
     }
 
+    /// <summary>
+    /// Assumes that a given task returning null means that the task failed.
+    /// </summary>
     internal static async Task<(T, int)> ParallelTask<T>(
         int candidateCount,
         Func<int, CancellationToken, Task<T>> taskBuilder,
@@ -216,6 +228,7 @@ public static class HappyEyeballsHttp
                 if (whenAnyOrTimeout != whenAnyDone)
                 {
                     // Timeout finished. Go to next iteration so we queue another one.
+                    Log.Warning("Timeout occurred on a task");
                     continue;
                 }
 
@@ -226,10 +239,11 @@ public static class HappyEyeballsHttp
                 completedTask = await whenAnyDone.ConfigureAwait(false);
             }
 
-            if (completedTask.IsCompletedSuccessfully)
+            if (completedTask.IsCompletedSuccessfully &&
+                completedTask.Result is { })
             {
                 // We did it. We have success.
-                successTask = completedTask;
+                successTask = completedTask!;
                 break;
             }
             else
@@ -242,13 +256,14 @@ public static class HappyEyeballsHttp
         Debug.Assert(allTasks.Count > 0);
 
         cancel.ThrowIfCancellationRequested();
+
         await successCts.CancelAsync().ConfigureAwait(false);
 
         if (successTask == null)
         {
             // We didn't get a single successful connection. Well heck.
             throw new AggregateException(
-                allTasks.Where(x => x.IsFaulted).SelectMany(x => x.Exception!.InnerExceptions));
+               allTasks.Where(x => x.IsFaulted).SelectMany(x => x.Exception!.InnerExceptions));
         }
 
         // I don't know if this is possible but MAKE SURE that we don't get two sockets completing at once.
@@ -256,9 +271,9 @@ public static class HappyEyeballsHttp
         foreach (var task in allTasks)
         {
             if (task.IsCompletedSuccessfully && task != successTask)
-                task.Result.Dispose();
+                task.Result!.Dispose();
         }
 
-        return (successTask.Result, allTasks.IndexOf(successTask));
+        return (successTask.Result!, allTasks.IndexOf(successTask!));
     }
 }

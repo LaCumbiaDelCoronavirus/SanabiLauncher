@@ -129,7 +129,6 @@ public sealed class ServerListCache : ReactiveObject, IServerSource
                 }
             }
 
-            // TODO: Optimise this o algo.
             Status = RefreshListStatus.Pinging;
             var serverTasks = entries.Select(async entry =>
             {

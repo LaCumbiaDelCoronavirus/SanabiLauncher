@@ -93,6 +93,7 @@ public sealed class ServerStatusCache : IServerSource
             ServerApi.ServerStatus status;
             try
             {
+                // geg launchercacas what is this VVV
                 // await Task.Delay(Random.Shared.Next(150, 5000), cancel);
 
                 using (var linkedToken = CancellationTokenSource.CreateLinkedTokenSource(cancel))
@@ -100,21 +101,20 @@ public sealed class ServerStatusCache : IServerSource
                     linkedToken.CancelAfter(ConfigConstants.ServerStatusTimeout);
 
                     status = await http.GetFromJsonAsync<ServerApi.ServerStatus>(statusAddr, linkedToken.Token)
-                             ?? throw new InvalidDataException();
+                        ?? throw new InvalidDataException();
                 }
 
                 cancel.ThrowIfCancellationRequested();
             }
-            catch (Exception e) when (e is JsonException or HttpRequestException or InvalidDataException or IOException
-                                          or SocketException)
+            catch (Exception e) when (e is JsonException or HttpRequestException or InvalidDataException or IOException or AggregateException or TaskCanceledException)
             {
-                data.Status = ServerStatusCode.Offline;
+                data.Status = ServerStatusCode.HostErr;
                 return;
             }
 
             ApplyStatus(data, status, null);
         }
-        catch (OperationCanceledException)
+        catch (Exception e) when (e is OperationCanceledException or AggregateException)
         {
             data.Status = ServerStatusCode.Offline;
         }

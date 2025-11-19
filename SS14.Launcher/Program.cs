@@ -26,6 +26,7 @@ using SS14.Launcher.Models.OverrideAssets;
 using SS14.Launcher.Utility;
 using TerraFX.Interop.Windows;
 using LogEventLevel = Serilog.Events.LogEventLevel;
+using System.Threading.Tasks;
 
 namespace SS14.Launcher;
 
@@ -262,7 +263,7 @@ internal static class Program
             curArchitecture);
 
         engineManager.ClearAllEngines();
-        cfg.SetCVar(CVars.CurrentArchitecture, (int) curArchitecture);
+        cfg.SetCVar(CVars.CurrentArchitecture, (int)curArchitecture);
         cfg.CommitConfig();
     }
 }
