@@ -216,7 +216,24 @@ internal static class Program
         var http = HappyEyeballsHttp.CreateHttpClient();
         http.DefaultRequestHeaders.UserAgent.Add(
             new ProductInfoHeaderValue(LauncherVersion.Name, LauncherVersion.Version?.ToString()));
-        http.DefaultRequestHeaders.Add("SS14-Launcher-Fingerprint", cfg.Fingerprint.ToString());
+
+        cfg.GetCVarEntry(SanabiCVars.PassFingerprint).PropertyChanged += (_, _) => OnCheckHeaders();
+        cfg.GetCVarEntry(SanabiCVars.PassSpoofedFingerprint).PropertyChanged += (_, _) => OnCheckHeaders();
+        cfg.OnSpoofedFingerprintRegenerated += OnCheckHeaders;
+        OnCheckHeaders();
+
+        void OnCheckHeaders()
+        {
+            // If we're still passing the fingerprint, we need to overwrite the current
+            // default-header-fingerprint with the new one. However you cant do that without
+            // removing it first for whatever reason. In either case, we have to remove it (first).
+            http.DefaultRequestHeaders.Remove(ConfigConstants.LauncherFingerprintKey);
+
+            if (cfg.GetCVar(SanabiCVars.PassFingerprint))
+                http.DefaultRequestHeaders.Add(ConfigConstants.LauncherFingerprintKey, cfg.DynamicFingerprint.ToString());
+        }
+
+        Log.Information($"НАШ fingerprint: {cfg.DynamicFingerprint}");
         Locator.CurrentMutable.RegisterConstant(http);
 
         var loc = new LocalizationManager(cfg);

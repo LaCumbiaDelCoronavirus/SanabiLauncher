@@ -64,6 +64,14 @@ public sealed class DataManager : ReactiveObject
     // Privacy policy IDs accepted along with the last accepted version.
     private readonly Dictionary<string, string> _acceptedPrivacyPolicies = new();
 
+    /// <summary>
+    ///     String form of a Guid specifying this launcher's fingerprint.
+    /// </summary>
+    public string SpoofedFingerprint = string.Empty;
+    public event Action? OnSpoofedFingerprintRegenerated;
+
+    private bool _passSpoofedFingerprint = false;
+
     static DataManager()
     {
         SqlMapper.AddTypeHandler(new GuidTypeHandler());
@@ -102,7 +110,10 @@ public sealed class DataManager : ReactiveObject
             .Subscribe();
     }
 
-    public Guid Fingerprint => Guid.Parse(GetCVar(CVars.Fingerprint));
+    /// <summary>
+    ///     May be spoofed.
+    /// </summary>
+    public Guid DynamicFingerprint => Guid.Parse(_passSpoofedFingerprint ? SpoofedFingerprint : GetCVar(CVars.Fingerprint));
 
     public Guid? SelectedLoginId
     {
@@ -277,6 +288,14 @@ public sealed class DataManager : ReactiveObject
         // Load from SQLite DB.
         LoadSqliteConfig(connection);
 
+        // Fingerprint spoofing.
+        RegenerateSpoofedFingerprint();
+        var passSpoofedEntry = GetCVarEntry(SanabiCVars.PassSpoofedFingerprint);
+        passSpoofedEntry.PropertyChanged += (_, args) => UpdatePassSpoofedFingerprint();
+        UpdatePassSpoofedFingerprint();
+
+        void UpdatePassSpoofedFingerprint() => _passSpoofedFingerprint = GetCVar(SanabiCVars.PassSpoofedFingerprint);
+
         if (GetCVar(CVars.Fingerprint) == "")
         {
             // If we don't have a fingerprint yet this is either a fresh config or an older config.
@@ -285,6 +304,15 @@ public sealed class DataManager : ReactiveObject
         }
 
         CommitConfig();
+    }
+
+    /// <summary>
+    ///     Creates a new spoofed fingerprint and sets the CVar for it.
+    /// </summary>
+    public void RegenerateSpoofedFingerprint()
+    {
+        SpoofedFingerprint = Guid.NewGuid().ToString();
+        OnSpoofedFingerprintRegenerated?.Invoke();
     }
 
     private void LoadSqliteConfig(SqliteConnection sqliteConnection)
@@ -321,11 +349,11 @@ public sealed class DataManager : ReactiveObject
                 continue;
 
             if (entry.Type == typeof(string))
-                Set((string?) v);
+                Set((string?)v);
             else if (entry.Type == typeof(bool))
-                Set((long) v != 0);
+                Set((long)v != 0);
             else if (entry.Type == typeof(int))
-                Set((int)(long) v);
+                Set((int)(long)v);
 
             void Set<T>(T value) => ((CVarEntry<T>)entry).ValueInternal = value;
         }
@@ -343,14 +371,9 @@ public sealed class DataManager : ReactiveObject
         _dbCommandQueue.Clear();
     }
 
-    private void InitializeCVars()
+    private void SearchCVars(MethodInfo baseMethod, FieldInfo[] fieldInfos)
     {
-        Debug.Assert(_configEntries.Count == 0);
-
-        var baseMethod = typeof(DataManager)
-            .GetMethod(nameof(CreateEntry), BindingFlags.NonPublic | BindingFlags.Instance)!;
-
-        foreach (var field in typeof(CVars).GetFields(BindingFlags.Static | BindingFlags.Public))
+        foreach (var field in fieldInfos)
         {
             if (!field.FieldType.IsAssignableTo(typeof(CVarDef)))
                 continue;
@@ -359,6 +382,17 @@ public sealed class DataManager : ReactiveObject
             var method = baseMethod.MakeGenericMethod(def.ValueType);
             _configEntries.Add(def.Name, (CVarEntry)method.Invoke(this, new object?[] { def })!);
         }
+    }
+
+    private void InitializeCVars()
+    {
+        Debug.Assert(_configEntries.Count == 0);
+
+        var baseMethod = typeof(DataManager)
+            .GetMethod(nameof(CreateEntry), BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        SearchCVars(baseMethod, typeof(CVars).GetFields(BindingFlags.Static | BindingFlags.Public));
+        SearchCVars(baseMethod, typeof(SanabiCVars).GetFields(BindingFlags.Static | BindingFlags.Public));
     }
 
     private CVarEntry<T> CreateEntry<T>(CVarDef<T> def)
@@ -434,12 +468,12 @@ public sealed class DataManager : ReactiveObject
         AddDbCommand(con =>
         {
             con.Execute(reason switch
-                {
-                    ChangeReason.Add => "INSERT INTO FavoriteServer VALUES (@Address, @Name, @RaiseTime)",
-                    ChangeReason.Update => "UPDATE FavoriteServer SET Name = @Name, RaiseTime = @RaiseTime WHERE Address = @Address",
-                    ChangeReason.Remove => "DELETE FROM FavoriteServer WHERE Address = @Address",
-                    _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null)
-                },
+            {
+                ChangeReason.Add => "INSERT INTO FavoriteServer VALUES (@Address, @Name, @RaiseTime)",
+                ChangeReason.Update => "UPDATE FavoriteServer SET Name = @Name, RaiseTime = @RaiseTime WHERE Address = @Address",
+                ChangeReason.Remove => "DELETE FROM FavoriteServer WHERE Address = @Address",
+                _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null)
+            },
                 data
             );
         });
@@ -458,13 +492,13 @@ public sealed class DataManager : ReactiveObject
         AddDbCommand(con =>
         {
             con.Execute(reason switch
-                {
-                    ChangeReason.Add => "INSERT INTO Login VALUES (@UserId, @UserName, @Token, @Expires)",
-                    ChangeReason.Update =>
-                        "UPDATE Login SET UserName = @UserName, Token = @Token, Expires = @Expires WHERE UserId = @UserId",
-                    ChangeReason.Remove => "DELETE FROM Login WHERE UserId = @UserId",
-                    _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null)
-                },
+            {
+                ChangeReason.Add => "INSERT INTO Login VALUES (@UserId, @UserName, @Token, @Expires)",
+                ChangeReason.Update =>
+                    "UPDATE Login SET UserName = @UserName, Token = @Token, Expires = @Expires WHERE UserId = @UserId",
+                ChangeReason.Remove => "DELETE FROM Login WHERE UserId = @UserId",
+                _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null)
+            },
                 data
             );
         });
@@ -473,13 +507,13 @@ public sealed class DataManager : ReactiveObject
     private void ChangeEngineInstallation(ChangeReason reason, InstalledEngineVersion engine)
     {
         AddDbCommand(con => con.Execute(reason switch
-            {
-                ChangeReason.Add => "INSERT INTO EngineInstallation VALUES (@Version, @Signature)",
-                ChangeReason.Update =>
-                    "UPDATE EngineInstallation SET Signature = @Signature WHERE Version = @Version",
-                ChangeReason.Remove => "DELETE FROM EngineInstallation WHERE Version = @Version",
-                _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null)
-            },
+        {
+            ChangeReason.Add => "INSERT INTO EngineInstallation VALUES (@Version, @Signature)",
+            ChangeReason.Update =>
+                "UPDATE EngineInstallation SET Signature = @Signature WHERE Version = @Version",
+            ChangeReason.Remove => "DELETE FROM EngineInstallation WHERE Version = @Version",
+            _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null)
+        },
             // Already immutable.
             engine
         ));
@@ -569,7 +603,7 @@ public sealed class DataManager : ReactiveObject
 
             _parent.AddDbCommand(cmd => cmd.Execute(
                 "INSERT INTO ServerFilter (Category, Data) VALUES (@Category, @Data)",
-                new { item.Category, item.Data}));
+                new { item.Category, item.Data }));
         }
 
         public void Clear()
@@ -586,7 +620,7 @@ public sealed class DataManager : ReactiveObject
 
             _parent.AddDbCommand(cmd => cmd.Execute(
                 "DELETE FROM ServerFilter WHERE Category = @Category AND Data = @Data",
-                new { item.Category, item.Data}));
+                new { item.Category, item.Data }));
 
             return true;
         }

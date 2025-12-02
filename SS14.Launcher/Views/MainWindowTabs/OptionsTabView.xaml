@@ -65,6 +65,21 @@ You can put (one or more) images in 'SS14 Data folder -> launcher -> sanabi -> s
         <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
                    Text="{loc:Loc tab-options-hub-settings-desc}"
                    Margin="8" />
+
+        <CheckBox VerticalAlignment="Center" Margin="4" IsChecked="{Binding PassFingerprint}" Content="Pass launcher fingerprint" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                   Text="Should the launcher pass it's fingerprint to everything via http? Turning this off may be sus."
+                   Margin="8" />
+
+        <CheckBox VerticalAlignment="Center" Margin="4" IsChecked="{Binding PassSpoofedFingerprint}" Content="Spoof launcher fingerprint" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                   Text="If passing the launcher fingerprint, do we create and use new, spoofed random one every time the launcher is started?"
+                   Margin="8" />
+
+        <CheckBox VerticalAlignment="Center" Margin="4" IsChecked="{Binding SpoofFingerprintOnLogin}" Content="Spoof fingerprint on every login" />
+        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                   Text="When logging into another account during the same session, should the fingerprint used when passing a spoofed fingerprint, be re-generated?"
+                   Margin="8" />
       </StackPanel>
     </DockPanel>
   </ScrollViewer>

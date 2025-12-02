@@ -472,7 +472,7 @@ public partial class Connector : ReactiveObject
         try
         {
             var info = await _http.GetFromJsonAsync<ServerInfo>(infoAddr, cancel) ?? throw new InvalidDataException();
-            if (info.BuildInformation is {} buildInfo && (buildInfo.Acz || string.IsNullOrEmpty(buildInfo.DownloadUrl)))
+            if (info.BuildInformation is { } buildInfo && (buildInfo.Acz || string.IsNullOrEmpty(buildInfo.DownloadUrl)))
             {
                 var acz = info.BuildInformation.Acz;
                 var apiAddress = UriHelper.GetServerApiAddress(parsedAddress);
@@ -740,7 +740,7 @@ public partial class Connector : ReactiveObject
                 var xattr = Process.Start(new ProcessStartInfo
                 {
                     FileName = "xattr",
-                    ArgumentList = {"-d", "com.apple.quarantine", appPath},
+                    ArgumentList = { "-d", "com.apple.quarantine", appPath },
                     RedirectStandardError = true,
                     RedirectStandardOutput = true
                 });

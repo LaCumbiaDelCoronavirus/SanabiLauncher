@@ -74,7 +74,7 @@ public static class CVars
     /// <summary>
     /// Enable multi-account support on release builds.
     /// </summary>
-    public static readonly CVarDef<bool> MultiAccounts = CVarDef.Create("MultiAccounts", false);
+    public static readonly CVarDef<bool> MultiAccounts = CVarDef.Create("MultiAccounts", true);
 
     /// <summary>
     /// Currently selected login in the drop down.
@@ -93,7 +93,7 @@ public static class CVars
     /// </summary>
     public static readonly CVarDef<int> MaxForkVersionsToKeep = CVarDef.Create("MaxForkVersionsToKeep", 3);
 
-     /// <summary>
+    /// <summary>
     /// If a download gets interrupted, keep the files for a week.
     /// </summary>
     public static readonly CVarDef<int> InterruptibleDownloadKeepHours = CVarDef.Create("InterruptibleDownloadKeepHours", 7 * 24);
@@ -133,7 +133,7 @@ public static class CVars
     /// Defaults to x64 so that people upgrading to a proper ARM64 launcher on e.g. Apple Silicon
     /// properly get their existing installations cleared.
     /// </remarks>
-    public static readonly CVarDef<int> CurrentArchitecture = CVarDef.Create("CurrentArchitecture", (int) Architecture.X64);
+    public static readonly CVarDef<int> CurrentArchitecture = CVarDef.Create("CurrentArchitecture", (int)Architecture.X64);
 }
 
 /// <summary>

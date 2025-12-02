@@ -20,6 +20,8 @@ public static class ConfigConstants
     // Check the command queue this often.
     public static readonly TimeSpan CommandQueueCheckInterval = TimeSpan.FromSeconds(1);
 
+    public const string LauncherFingerprintKey = "SS14-Launcher-Fingerprint";
+
     public const string LauncherCommandsNamedPipeName = "SS14.Launcher.CommandPipe";
     // Amount of time to wait before the launcher decides to ignore named pipes entirely to keep the rest of the launcher functional.
     public const int LauncherCommandsNamedPipeTimeout = 150;

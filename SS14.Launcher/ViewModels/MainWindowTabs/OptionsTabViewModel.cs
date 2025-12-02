@@ -75,6 +75,36 @@ public class OptionsTabViewModel : MainWindowTabViewModel
         }
     }
 
+    public bool PassFingerprint
+    {
+        get => Cfg.GetCVar(SanabiCVars.PassFingerprint);
+        set
+        {
+            Cfg.SetCVar(SanabiCVars.PassFingerprint, value);
+            Cfg.CommitConfig();
+        }
+    }
+
+    public bool PassSpoofedFingerprint
+    {
+        get => Cfg.GetCVar(SanabiCVars.PassSpoofedFingerprint);
+        set
+        {
+            Cfg.SetCVar(SanabiCVars.PassSpoofedFingerprint, value);
+            Cfg.CommitConfig();
+        }
+    }
+
+    public bool SpoofFingerprintOnLogin
+    {
+        get => Cfg.GetCVar(SanabiCVars.SpoofFingerprintOnLogin);
+        set
+        {
+            Cfg.SetCVar(SanabiCVars.SpoofFingerprintOnLogin, value);
+            Cfg.CommitConfig();
+        }
+    }
+
     public void ClearEngines()
     {
         _engineManager.ClearAllEngines();
