@@ -1,13 +1,13 @@
 using JetBrains.Annotations;
+using SS14.Common.Data.CVars;
 
 namespace SS14.Launcher.Models.Data;
 
 /// <summary>
 ///     Contains definitions for all SanabiLauncher-specific configuration values.
 /// </summary>
-/// <see cref="DataManager"/>
 [UsedImplicitly]
-public static class SanabiCVars
+public static partial class SanabiCVars
 {
     /// <summary>
     ///     Include "SS14-Launcher-Fingerprint" and this launcher's fingerprint, in

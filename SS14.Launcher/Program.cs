@@ -234,7 +234,6 @@ internal static class Program
         }
 
         Log.Information($"НАШ fingerprint: {cfg.DynamicFingerprint}");
-        SanabiEntry.Initialise();
 
         Locator.CurrentMutable.RegisterConstant(http);
 

@@ -23,6 +23,7 @@ using SS14.Launcher.Utility;
 using SS14.Launcher.ViewModels.Login;
 using SS14.Launcher.ViewModels.MainWindowTabs;
 using SS14.Launcher.Views;
+using SS14.Launcher.Views.MainWindowTabs;
 
 namespace SS14.Launcher.ViewModels;
 
@@ -62,6 +63,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         tabs.Add(ServersTab);
         //tabs.Add(NewsTab);
         tabs.Add(OptionsTab);
+        tabs.Add(new PatchesTabViewModel());
 #if DEVELOPMENT
         tabs.Add(new DevelopmentTabViewModel());
 #endif

@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:mainWindowTabs="clr-namespace:SS14.Launcher.ViewModels.MainWindowTabs"
+             xmlns:loc="clr-namespace:SS14.Launcher.Localization"
+             xmlns:views="clr-namespace:SS14.Launcher.Views"
+             mc:Ignorable="d"
+             d:DesignWidth="800"
+             d:DesignHeight="450"
+             x:Class="SS14.Launcher.Views.MainWindowTabs.PatchesTabView"
+             Name="PatchesTab">
+  <Design.DataContext>
+    <mainWindowTabs:PatchesTabViewModel/>
+  </Design.DataContext>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <DockPanel>
+      <TextBlock DockPanel.Dock="Top"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Center"
+                 TextWrapping="Wrap"
+                 Text="Fuck with patching here."/>
+
+      <StackPanel Orientation="Vertical">
+        <CheckBox VerticalAlignment="Center"
+                  Margin="4"
+                  IsChecked="{Binding PatchingEnabled}"
+                  Content="Enable patching"/>
+        <TextBlock VerticalAlignment="Center"
+                   TextWrapping="Wrap"
+                   Text="Enable any kind of patching?"
+                   Margin="8"/>
+
+        <CheckBox VerticalAlignment="Center"
+                  Margin="4"
+                  IsChecked="{Binding PatchingLevel}"
+                  Content="Patch content"/>
+        <TextBlock VerticalAlignment="Center"
+                   TextWrapping="Wrap"
+                   Text="If checked, then both engine and content will be patched. Otherwise, only patches engine. Obviously only applies if patching is enabled."
+                   Margin="8"/>
+
+        <CheckBox VerticalAlignment="Center"
+                  Margin="4"
+                  IsChecked="{Binding HwidPatchEnabled}"
+                  Content="Enable HWID spoofing patch"/>
+        <TextBlock VerticalAlignment="Center"
+                   TextWrapping="Wrap"
+                   Text="Patches out HWID to be spoofed when connecting to a server. Only applies if patching is enabled."
+                   Margin="8"/>
+      </StackPanel>
+    </DockPanel>
+  </ScrollViewer>
+</UserControl>

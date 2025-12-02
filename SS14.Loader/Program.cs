@@ -6,9 +6,9 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
-using HarmonyLib;
 using NSec.Cryptography;
 using Robust.LoaderApi;
+using Sanabi.Framework.Data;
 using Sanabi.Framework.Game.Managers;
 using Sanabi.Framework.Game.Patches;
 using Sanabi.Framework.Patching;
@@ -69,15 +69,24 @@ internal class Program
         AssemblyManager.Assemblies["Robust.Client"] = clientAssembly;
         AssemblyManager.Assemblies["Robust.Shared"] = sharedEngineAssembly;
 
+        // wait until properly connected
+
+        var sanabiConfig = IpcManager.RunStructPipeClient<SanabiConfig>(IpcManager.SanabiIpcName);
+        //var sanabiConfig = new SanabiConfig();
+        Console.WriteLine($"Received sanabiconfig, runlevel @ {sanabiConfig.PatchRunLevel}");
+
         var contentRunLevelAct = () =>
         {
-            PatchEntryAttributeManager.ProcessRunLevel(PatchRunLevel.Content);
+            if (sanabiConfig.PatchRunLevel.HasFlag(PatchRunLevel.Content))
+                PatchEntryAttributeManager.ProcessRunLevel(PatchRunLevel.Content);
         };
 
-        if (AssemblyManager.TryGetAssembly("Robust.Client", out _))
+        HarmonyManager.Initialise();
+
+        if (sanabiConfig.PatchRunLevel.HasFlag(PatchRunLevel.Engine) &&
+            AssemblyManager.TryGetAssembly("Robust.Client", out _))
         {
             Console.WriteLine($"Harmony {(HarmonyManager.Harmony == null ? "is broken" : "exists")}");
-            HarmonyManager.Initialise();
             HarmonyManager.BypassAnticheat();
 
             var modloader = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.ModLoader");
@@ -93,8 +102,16 @@ internal class Program
         {
             Console.WriteLine("Deemed dangerous to bypass");
         }
-        Console.WriteLine("lsasm dump:");
 
+        Console.WriteLine("lsasm dump:");
+        foreach (var asmLoadContext in AssemblyLoadContext.All)
+        {
+            Console.WriteLine("{0}:", asmLoadContext.Name);
+            foreach (var Asm in asmLoadContext.Assemblies)
+            {
+                Console.WriteLine("  {0}", Asm.GetName().Name);
+            }
+        }
 
 #if USE_SYSTEM_SQLITE
         SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_sqlite3());

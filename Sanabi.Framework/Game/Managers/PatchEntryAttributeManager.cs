@@ -28,7 +28,7 @@ public static class PatchEntryAttributeManager
                 {
                     var attribute = method.GetCustomAttribute<PatchEntryAttribute>();
                     if (attribute == null ||
-                        attribute.RunLevel != runLevel)
+                        attribute.RunLevel.HasFlag(runLevel))
                         continue;
 
                     Console.WriteLine($"Starting patching {method.DeclaringType?.FullName}");

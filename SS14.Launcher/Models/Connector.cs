@@ -15,6 +15,9 @@ using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using DynamicData;
 using ReactiveUI;
+using Sanabi.Framework.Data;
+using Sanabi.Framework.Game.Managers;
+using Sanabi.Framework.Game.Patches;
 using Serilog;
 using Splat;
 using SS14.Launcher.Models.Data;
@@ -558,8 +561,8 @@ public partial class Connector : ReactiveObject
             EnvVar("SS14_LOG_CLIENT", LauncherPaths.PathClientMacLog);
         }
 
-        startInfo.RedirectStandardOutput = true;
-        startInfo.RedirectStandardError = true;
+        // startInfo.RedirectStandardOutput = true;
+        // startInfo.RedirectStandardError = true;
 
         // Performance tweaks
         EnvVar("DOTNET_TieredPGO", "1");
@@ -590,29 +593,35 @@ public partial class Connector : ReactiveObject
 
         Log.Debug("Launch command: {LaunchCommand}", commandBuilder.ToString());
 
+        var config = new SanabiConfig();
+        config.PatchRunLevel = _cfg.GetCVar(SanabiCVars.PatchingEnabled) ?
+            (_cfg.GetCVar(SanabiCVars.PatchingLevel) ? PatchRunLevel.Full : PatchRunLevel.Engine) :
+            PatchRunLevel.None;
+        _ = IpcManager.RunStructPipeServer(IpcManager.SanabiIpcName, config);
+
         var process = Process.Start(startInfo);
 
         if (process != null)
         {
             Log.Debug("Setting up manual-pipe logging for new client with PID {pid}.", process.Id);
 
-            var fileStdout = new FileStream(
-                LauncherPaths.PathClientStdoutLog,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.Delete | FileShare.ReadWrite,
-                4096,
-                FileOptions.Asynchronous);
+            // var fileStdout = new FileStream(
+            //     LauncherPaths.PathClientStdoutLog,
+            //     FileMode.Create,
+            //     FileAccess.Write,
+            //     FileShare.Delete | FileShare.ReadWrite,
+            //     4096,
+            //     FileOptions.Asynchronous);
 
-            var fileStderr = new FileStream(
-                LauncherPaths.PathClientStderrLog,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.Delete | FileShare.ReadWrite,
-                4096,
-                FileOptions.Asynchronous);
+            // var fileStderr = new FileStream(
+            //     LauncherPaths.PathClientStderrLog,
+            //     FileMode.Create,
+            //     FileAccess.Write,
+            //     FileShare.Delete | FileShare.ReadWrite,
+            //     4096,
+            //     FileOptions.Asynchronous);
 
-            PipeOutput(process, fileStdout, fileStderr);
+            //PipeOutput(process, fileStdout, fileStderr);
         }
 
         return process;

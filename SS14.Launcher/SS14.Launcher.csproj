@@ -94,7 +94,9 @@
     </Content>
   </ItemGroup>
   <Import Project="..\MSBuild\Robust.Trimming.targets" />
+
   <ItemGroup>
     <ProjectReference Include="../Sanabi.Framework/Sanabi.Framework.csproj" />
+    <ProjectReference Include="../SS14.Common/SS14.Common.csproj" />
   </ItemGroup>
 </Project>

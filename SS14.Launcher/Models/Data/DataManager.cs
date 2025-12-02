@@ -16,6 +16,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Toolkit.Mvvm.Messaging;
 using ReactiveUI;
 using Serilog;
+using SS14.Common.Data.CVars;
 using SS14.Launcher.Utility;
 
 namespace SS14.Launcher.Models.Data;

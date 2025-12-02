@@ -8,12 +8,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="../SS14.Common/SS14.Common.csproj" />
-  </ItemGroup>
-
     <ItemGroup>
         <PackageReference Include="JetBrains.Annotations" />
-        <PackageReference Include="Lib.Harmony" />
     </ItemGroup>
 </Project>

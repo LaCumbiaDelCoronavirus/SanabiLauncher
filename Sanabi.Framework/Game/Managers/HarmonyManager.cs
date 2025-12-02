@@ -22,7 +22,7 @@ public static class HarmonyManager
     public static void Initialise()
     {
         Console.WriteLine($"Inited harmony");
-        _harmony = new("our.sanabi.goida.raiders.2025.nabegali");
+        _harmony ??= new("our.sanabi.goida.raiders.2025.nabegali");
     }
 
     /*
@@ -49,6 +49,11 @@ public static class HarmonyManager
         }
     */
     public static void BypassAnticheat()
+    {
+        PatchHelpers.PatchPrefixFalse(ReflectionManager.GetTypeByQualifiedName("Robust.Client.GameController").TypeInitializer!);
+    }
+
+    public static void Cloak()
     {
         PatchHelpers.PatchPrefixFalse(ReflectionManager.GetTypeByQualifiedName("Robust.Client.GameController").TypeInitializer!);
     }
