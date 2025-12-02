@@ -22,8 +22,6 @@ public static class AssemblyLoadPatch
             Prefix,
             HarmonyPatchType.Prefix
         );
-
-        Console.WriteLine("Patched InitMod");
     }
 
     private static bool Prefix(Assembly assembly)

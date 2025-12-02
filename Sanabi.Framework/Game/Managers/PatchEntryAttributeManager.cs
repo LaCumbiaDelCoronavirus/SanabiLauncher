@@ -31,6 +31,7 @@ public static class PatchEntryAttributeManager
                         attribute.RunLevel != runLevel)
                         continue;
 
+                    Console.WriteLine($"Starting patching {method.DeclaringType?.FullName}");
                     method.Invoke(null, null);
                     Console.WriteLine($"Patched {method.DeclaringType?.FullName}");
                 }

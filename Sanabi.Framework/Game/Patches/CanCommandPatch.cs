@@ -4,25 +4,26 @@ using Sanabi.Framework.Patching;
 namespace Sanabi.Framework.Game.Patches;
 
 /// <summary>
-///     Gives you full adminflags.
+///     Lets you use absolutely any command.
 /// </summary>
-public static class AdminPatch
+public static class CanCommandPatch
 {
     [PatchEntry(PatchRunLevel.Content)]
     public static void Patch()
     {
         PatchHelpers.PatchMethod(
-            "Content.Shared.Administration.AdminData",
-            "HasFlag",
+            "Content.Client.Administration.Managers.ClientAdminManager",
+            "CanCommand",
             Prefix,
             HarmonyPatchType.Prefix
         );
     }
 
-    private static bool Prefix(ref bool __result, dynamic flag, bool includeDeAdmin = false)
+    private static bool Prefix(ref bool __result, string cmdName)
     {
-        Console.WriteLine($"Patching AdminFlags.");
+        Console.WriteLine($"Patching CanCommand value for command \"{cmdName}\".");
         __result = true;
+
         return false;
     }
 }
