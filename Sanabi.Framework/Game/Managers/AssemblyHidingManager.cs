@@ -26,8 +26,13 @@ public static class AssemblyHidingManager
 
     public static void HideBasicAssemblies()
     {
-        HideAssembly("Harmony", once: true);
-        HideAssembly("Sanabi", once: true);
+        HideAssembly("Harmony", once: false);
+        HideAssembly("Sanabi", once: false);
+
+        HideAssembly("MonoMod", once: false);
+
+        HideAssembly("System.Reflection", once: true);
+        HideAssembly("System.Reflection.Emit", once: true);
     }
 
     /// <summary>
