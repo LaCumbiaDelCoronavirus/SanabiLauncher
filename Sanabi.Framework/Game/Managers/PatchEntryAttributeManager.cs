@@ -33,13 +33,17 @@ public static class PatchEntryAttributeManager
                         continue;
 
                     var parameters = method.GetParameters();
-                    if (parameters.Length == 0)
-                        method.Invoke(null, null);
-                    else if (parameters.Length == 1 &&
+                    object?[]? invokedParameters = null;
+                    if (parameters.Length == 1 &&
                         parameters[0].ParameterType == AssemblyManager.Assemblies.GetType())
-                        method.Invoke(null, [AssemblyManager.Assemblies]);
+                        invokedParameters = [AssemblyManager.Assemblies];
 
-                    Console.WriteLine($"Patched {method.DeclaringType?.FullName}");
+                    if (attribute.Async)
+                        _ = Task.Run(async () => method.Invoke(null, invokedParameters));
+                    else
+                        method.Invoke(null, invokedParameters);
+
+                    Console.WriteLine($"Entered patch at {method.DeclaringType?.FullName}");
                 }
             }
         }

@@ -9,9 +9,14 @@ namespace Sanabi.Framework.Game.Patches;
 ///         this dictionary will be <see cref="Managers.AssemblyManager.Assemblies"/>.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-public class PatchEntryAttribute(PatchRunLevel RunLevel) : Attribute
+public class PatchEntryAttribute(PatchRunLevel runLevel, bool async = false) : Attribute
 {
-    public PatchRunLevel RunLevel { get; } = RunLevel;
+    public PatchRunLevel RunLevel { get; } = runLevel;
+
+    /// <summary>
+    ///     Is this patch run on another thread when entered?
+    /// </summary>
+    public bool Async { get; } = async;
 }
 
 [Flags]
