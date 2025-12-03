@@ -1,4 +1,5 @@
 using HarmonyLib;
+using Sanabi.Framework.Data;
 using Sanabi.Framework.Patching;
 
 namespace Sanabi.Framework.Game.Patches;
@@ -18,6 +19,9 @@ public static class RceTripwirePatch
     [PatchEntry(PatchRunLevel.Engine)]
     public static void Patch()
     {
+        if (!SanabiConfig.ProcessConfig.LoadInternalMods)
+            return;
+
         PatchHelpers.PatchMethod(
             "Robust.Client.Console.ClientConsoleHost",
             "RemoteExecuteCommand",

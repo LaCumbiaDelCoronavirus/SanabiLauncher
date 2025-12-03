@@ -76,6 +76,7 @@ internal class Program
         //var sanabiConfig = new SanabiConfig();
         Console.WriteLine($"Received sanabiconfig, runlevel @ {processSanabiConfig.PatchRunLevel}");
         Console.WriteLine($"Received sanabiconfig, hwid @ {processSanabiConfig.RunHwidPatch}");
+        Console.WriteLine($"Received sanabiconfig, external mods @ {processSanabiConfig.LoadExternalMods}");
 
         var contentRunLevelAct = () =>
         {
@@ -104,20 +105,16 @@ internal class Program
             AssemblyManager.QueryAssemblies();
             AssemblyManager.Subscribe();
         }
-        else
-        {
-            Console.WriteLine("Deemed dangerous to bypass");
-        }
 
-        // Console.WriteLine("lsasm dump:");
-        // foreach (var asmLoadContext in AssemblyLoadContext.All)
-        // {
-        //     Console.WriteLine("{0}:", asmLoadContext.Name);
-        //     foreach (var Asm in asmLoadContext.Assemblies)
-        //     {
-        //         Console.WriteLine("  {0}", Asm.GetName().Name);
-        //     }
-        // }
+        Console.WriteLine("lsasm dump:");
+        foreach (var asmLoadContext in AssemblyLoadContext.All)
+        {
+            Console.WriteLine("{0}:", asmLoadContext.Name);
+            foreach (var Asm in asmLoadContext.Assemblies)
+            {
+                Console.WriteLine("  {0}", Asm.GetName().Name);
+            }
+        }
 
 #if USE_SYSTEM_SQLITE
         SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_sqlite3());

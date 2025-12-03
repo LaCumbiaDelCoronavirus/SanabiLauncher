@@ -598,6 +598,8 @@ public partial class Connector : ReactiveObject
             (_cfg.GetCVar(SanabiCVars.PatchingLevel) ? PatchRunLevel.Full : PatchRunLevel.Engine) :
             PatchRunLevel.None;
         config.RunHwidPatch = _cfg.GetCVar(SanabiCVars.HwidPatchEnabled);
+        config.LoadInternalMods = _cfg.GetCVar(SanabiCVars.LoadInternalMods);
+        config.LoadExternalMods = _cfg.GetCVar(SanabiCVars.LoadExternalMods);
 
         _ = IpcManager.RunStructPipeServer(IpcManager.SanabiIpcName, config);
 

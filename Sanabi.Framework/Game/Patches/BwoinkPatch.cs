@@ -1,4 +1,5 @@
 using HarmonyLib;
+using Sanabi.Framework.Data;
 using Sanabi.Framework.Patching;
 
 namespace Sanabi.Framework.Game.Patches;
@@ -11,6 +12,9 @@ public static class BwoinkPatch
     [PatchEntry(PatchRunLevel.Content)]
     public static void Patch()
     {
+        if (!SanabiConfig.ProcessConfig.LoadInternalMods)
+            return;
+
         PatchHelpers.PatchMethod(
             "Content.Client.UserInterface.Systems.Bwoink",
             "ReceivedBwoink",

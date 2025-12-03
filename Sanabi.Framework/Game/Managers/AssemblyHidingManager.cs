@@ -3,7 +3,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 using HarmonyLib;
-using Sanabi.Framework.Misc.Net;
 using Sanabi.Framework.Patching;
 
 namespace Sanabi.Framework.Game.Managers;
@@ -18,6 +17,21 @@ public static class AssemblyHidingManager
     ///     Assemblies hidden from view.
     /// </summary>
     private static readonly List<Assembly> _hiddenAssemblies = new();
+
+    /*
+    See: https://github.com/space-wizards/RobustToolbox/blob/9e8f7092ea32a2653776292703d20320f3f34cf5/Robust.Shared/ContentPack/Sandbox.yml#L15
+
+    ```
+    # EVERYTHING in these namespaces is allowed.
+    # Note that, due to a historical bug in the sandbox, any namespace _prefixed_ with one of these
+    # is also allowed. (For instance, RobustBats.X, or ContentFarm.Y)
+    WhitelistedNamespaces:
+    - Robust
+    - Content
+    - OpenDreamShared
+    ```
+    */
+    private static readonly string[] _contentNamespaces = ["Robust", "Content", "OpenDreamShared"];
 
     public static void Initialise()
     {
@@ -50,8 +64,8 @@ public static class AssemblyHidingManager
                 continue;
 
             HideAssembly(assembly);
-            if (once)
-                break;
+            //if (once)
+            //    break;
         }
     }
 
@@ -112,7 +126,12 @@ public static class AssemblyHidingManager
     private static void DetectionVectorPatcher(ref object __result)
     {
         // If called from framework or whatever then let it actually use the function
-        if (IsCallsiteInHiddenAssembly())
+        // I think this is actually a bit overkill so it's not used.
+        //if (IsCallsiteInHiddenAssembly())
+        //    return;
+
+        // Don't let content see
+        if (!IsCallsiteFromGame())
             return;
 
         // i hate ts
@@ -153,6 +172,30 @@ public static class AssemblyHidingManager
 
             if (_hiddenAssemblies.Contains(method.DeclaringType.Assembly))
                 return true;
+        }
+
+        return false;
+    }
+
+    /// <returns>Whether the stack-trace of this method's call-site was ever in any Robust/Content/OpenDreamShared namespace.</returns>
+    public static bool IsCallsiteFromGame()
+    {
+        var stackTrace = new StackTrace();
+        var frames = stackTrace.GetFrames();
+
+        foreach (var frame in frames)
+        {
+            var method = frame.GetMethod();
+            if (method == null ||
+                method.DeclaringType?.Namespace is not { } methodNamespace ||
+                methodNamespace.Length == 0)
+                continue;
+
+            foreach (var badNamespace in _contentNamespaces)
+            {
+                if (methodNamespace.StartsWith(badNamespace))
+                    return true;
+            }
         }
 
         return false;

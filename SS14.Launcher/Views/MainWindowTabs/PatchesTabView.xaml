@@ -16,6 +16,11 @@
 
   <ScrollViewer HorizontalScrollBarVisibility="Disabled">
     <DockPanel>
+      <Button Content="Mod Directory"
+              DockPanel.Dock="Bottom"
+              HorizontalAlignment="Left"
+              Command="{Binding OpenModDirectory}"/>
+
       <TextBlock DockPanel.Dock="Top"
                  HorizontalAlignment="Center"
                  VerticalAlignment="Center"
@@ -48,6 +53,24 @@
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
                    Text="Patches out HWID to be spoofed when connecting to a server. Only applies if engine patching is enabled."
+                   Margin="8"/>
+
+        <CheckBox VerticalAlignment="Center"
+                  Margin="4"
+                  IsChecked="{Binding LoadInternalMods}"
+                  Content="Enable internal mods"/>
+        <TextBlock VerticalAlignment="Center"
+                   TextWrapping="Wrap"
+                   Text="If patching is enabled, do we patch internal mods; those that come with the launcher?"
+                   Margin="8"/>
+
+        <CheckBox VerticalAlignment="Center"
+                  Margin="4"
+                  IsChecked="{Binding LoadExternalMods}"
+                  Content="Enable external mods"/>
+        <TextBlock VerticalAlignment="Center"
+                   TextWrapping="Wrap"
+                   Text="If patching is enabled, do we patch external mods; those that are in the mod's mod directory?"
                    Margin="8"/>
       </StackPanel>
     </DockPanel>

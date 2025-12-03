@@ -39,7 +39,7 @@ public static partial class PatchHelpers
     ///         a given <see cref="HarmonyPatchType"/>.
     /// </summary>
     /// <returns>True if there was success.</returns>
-    public static bool TryPatchMethod(MethodInfo? method, MethodInfo? patch, HarmonyPatchType patchType)
+    public static bool TryPatchMethod(MethodBase? method, MethodInfo? patch, HarmonyPatchType patchType)
     {
         if (method == null ||
             patch == null)

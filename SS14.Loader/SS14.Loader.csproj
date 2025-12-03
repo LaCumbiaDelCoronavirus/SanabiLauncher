@@ -15,8 +15,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sanabi.Framework\Sanabi.Framework.csproj" />
-    <ProjectReference Include="..\Robust.LoaderApi\Robust.LoaderApi\Robust.LoaderApi.csproj" />
+    <ProjectReference Include="../Sanabi.Framework/Sanabi.Framework.csproj" />
+    <ProjectReference Include="../SS14.Common/SS14.Common.csproj" />
+    <ProjectReference Include="../Robust.LoaderApi/Robust.LoaderApi/Robust.LoaderApi.csproj" />
   </ItemGroup>
 
   <ItemGroup>

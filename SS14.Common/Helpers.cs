@@ -1,14 +1,8 @@
-using System;
 using System.Buffers;
 using System.Diagnostics;
-using System.IO;
 using System.IO.Compression;
-using System.Net.Http;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Mono.Unix;
-using Serilog;
 using TerraFX.Interop.Windows;
 using Win = TerraFX.Interop.Windows.Windows;
 
@@ -98,13 +92,13 @@ public static class Helpers
     {
         if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsedUri))
         {
-            Log.Error("Unable to parse URI in server-provided link: {Link}", uri);
+            //Log.Error("Unable to parse URI in server-provided link: {Link}", uri);
             return;
         }
 
         if (parsedUri.Scheme is not ("http" or "https"))
         {
-            Log.Error("Refusing to open server-provided link {Link}, only http/https are allowed", parsedUri);
+            //Log.Error("Refusing to open server-provided link {Link}, only http/https are allowed", parsedUri);
             return;
         }
 

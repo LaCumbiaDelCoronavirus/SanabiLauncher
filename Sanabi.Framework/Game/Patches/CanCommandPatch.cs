@@ -1,5 +1,5 @@
-using System.Reflection.Emit;
 using HarmonyLib;
+using Sanabi.Framework.Data;
 using Sanabi.Framework.Game.Managers;
 using Sanabi.Framework.Patching;
 
@@ -13,6 +13,8 @@ public static class CanCommandPatch
     [PatchEntry(PatchRunLevel.Content)]
     public static void Patch()
     {
+        if (!SanabiConfig.ProcessConfig.LoadInternalMods)
+            return;
 
         if (!ReflectionManager.TryGetTypeByQualifiedName("Robust.Client.Console.ClientConsoleHost", out var clientConHostType))
             throw new InvalidOperationException("Couldn't resolve ClientConsoleHost!");

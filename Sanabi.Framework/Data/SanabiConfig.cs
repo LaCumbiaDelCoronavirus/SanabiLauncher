@@ -17,4 +17,8 @@ public record struct SanabiConfig()
     public PatchRunLevel PatchRunLevel = PatchRunLevel.None;
 
     public bool RunHwidPatch = true;
+
+    public bool LoadInternalMods = false;
+
+    public bool LoadExternalMods = false;
 }

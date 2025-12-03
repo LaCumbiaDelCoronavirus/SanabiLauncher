@@ -11,4 +11,9 @@
     <ItemGroup>
         <PackageReference Include="JetBrains.Annotations" />
     </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Mono.Posix.NETStandard" />
+        <PackageReference Include="TerraFX.Interop.Windows" />
+    </ItemGroup>
 </Project>

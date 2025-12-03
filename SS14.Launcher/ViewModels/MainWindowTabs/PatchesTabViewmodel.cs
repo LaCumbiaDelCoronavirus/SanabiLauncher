@@ -2,6 +2,7 @@ using Splat;
 using SS14.Launcher.Models.Data;
 using SS14.Launcher.Utility;
 using SS14.Common.Data.CVars;
+using System.Diagnostics;
 
 namespace SS14.Launcher.ViewModels.MainWindowTabs;
 
@@ -18,6 +19,15 @@ public class PatchesTabViewModel : MainWindowTabViewModel
     {
         Cfg.SetCVar(cVarDef, newValue);
         Cfg.CommitConfig();
+    }
+
+    public static void OpenModDirectory()
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            UseShellExecute = true,
+            FileName = LauncherPaths.SanabiModsPath
+        });
     }
 
     public override string Name => "Patches";
@@ -38,5 +48,17 @@ public class PatchesTabViewModel : MainWindowTabViewModel
     {
         get => Cfg.GetCVar(SanabiCVars.HwidPatchEnabled);
         set => SetAndCommitCvar(SanabiCVars.HwidPatchEnabled, value);
+    }
+
+    public bool LoadInternalMods
+    {
+        get => Cfg.GetCVar(SanabiCVars.LoadInternalMods);
+        set => SetAndCommitCvar(SanabiCVars.LoadInternalMods, value);
+    }
+
+    public bool LoadExternalMods
+    {
+        get => Cfg.GetCVar(SanabiCVars.LoadExternalMods);
+        set => SetAndCommitCvar(SanabiCVars.LoadExternalMods, value);
     }
 }

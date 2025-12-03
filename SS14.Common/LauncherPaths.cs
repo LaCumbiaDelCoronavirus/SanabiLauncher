@@ -36,6 +36,7 @@ public static class LauncherPaths
     public static readonly string PathOverrideAssetsDb = Path.Combine(DirLocalData, "override_assets.db");
 
     public static readonly string SanabiDirPath = Path.Combine(DirUserData, "sanabi");
+    public static readonly string SanabiModsPath = Path.Combine(SanabiDirPath, "mods");
 
     public static void CreateDirs()
     {
@@ -44,6 +45,7 @@ public static class LauncherPaths
         Ensure(DirEngineInstallations);
         Ensure(DirModuleInstallations);
         Ensure(SanabiDirPath);
+        Ensure(SanabiModsPath);
 
         static void Ensure(string path) => Helpers.EnsureDirectoryExists(path);
     }
