@@ -18,7 +18,7 @@ public static class IpcManager
     public static async Task RunStructPipeServer<TDatum>(string pipeName, TDatum transferredStruct) where TDatum : unmanaged
     {
         Console.WriteLine($"Starting server...");
-        var server = InitiateServer(pipeName, transmissionMode: PipeTransmissionMode.Byte, pipeDirection: PipeDirection.Out);
+        var server = InitiateServer(pipeName, pipeDirection: PipeDirection.Out);
         await server.WaitForConnectionAsync();
 
         Console.WriteLine($"Started server");
@@ -121,8 +121,8 @@ public static class IpcManager
     /// <summary>
     ///     Creates a <see cref="NamedPipeServerStream"/>.
     /// </summary>
-    private static NamedPipeServerStream InitiateServer(string pipeName, PipeTransmissionMode transmissionMode = PipeTransmissionMode.Message, PipeDirection pipeDirection = PipeDirection.InOut)
-        => new(pipeName, pipeDirection, 1, transmissionMode);
+    private static NamedPipeServerStream InitiateServer(string pipeName, PipeDirection pipeDirection = PipeDirection.InOut)
+        => new(pipeName, pipeDirection, 1, PipeTransmissionMode.Byte);
 
     /// <summary>
     ///     Creates a <see cref="NamedPipeClientStream"/>.
