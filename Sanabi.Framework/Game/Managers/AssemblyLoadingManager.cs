@@ -17,6 +17,30 @@ public static class AssemblyLoadingManager
     private static readonly Stack<Assembly> _assembliesPendingLoad = new();
     private static MethodInfo _modInitMethod = default!;
 
+    /// <summary>
+    ///     Invokes a static method and enters it. The method may
+    ///         have no parameters. If the method has one parameter,
+    ///         whose type is a `Dictionary<string, Assembly?>`, the
+    ///         method will be invoked with <see cref="AssemblyManager.Assemblies"/>
+    ///         as the only parameter.
+    /// </summary>
+    /// <param name="async">Whether to run the method on another task.</param>
+    public static void Enter(MethodInfo entryMethod, bool async = false)
+    {
+        var parameters = entryMethod.GetParameters();
+        object?[]? invokedParameters = null;
+        if (parameters.Length == 1 &&
+            parameters[0].ParameterType == AssemblyManager.Assemblies.GetType())
+            invokedParameters = [AssemblyManager.Assemblies];
+
+        if (async)
+            _ = Task.Run(async () => entryMethod.Invoke(null, invokedParameters));
+        else
+            entryMethod.Invoke(null, invokedParameters);
+
+        Console.WriteLine($"Entered patch at {entryMethod.DeclaringType?.FullName}");
+    }
+
     [PatchEntry(PatchRunLevel.Engine)]
     private static void Start()
     {
@@ -40,7 +64,7 @@ public static class AssemblyLoadingManager
             return;
 
         foreach (var dll in externalDlls)
-            _assembliesPendingLoad.Push(Assembly.LoadFrom(dll));
+        { _assembliesPendingLoad.Push(Assembly.LoadFrom(dll)); Console.WriteLine($"Going to load assembly: {dll}"); }
     }
 
     private static void ModLoaderPostfix(ref dynamic __instance)
@@ -51,13 +75,11 @@ public static class AssemblyLoadingManager
 
     /// <summary>
     ///     Tries to get the entry point for a mod assembly.
-    ///         This is only done so that we are compatible with Marsey
-    ///         patches; ideally we use <see cref="PatchEntryAttribute"/>.
+    ///         This is compatible with Marsey patches.
     /// </summary>
-    /// <param name="assembly"></param>
     public static MethodInfo? GetModAssemblyEntryPoint(Assembly assembly)
     {
-        var entryPointType = assembly.GetType("MarseyEntry");
+        var entryPointType = assembly.GetType("EntryPoint") ?? assembly.GetType("MarseyEntry");
         return entryPointType?.GetMethod("Entry", BindingFlags.Static | BindingFlags.Public);
     }
 
@@ -87,13 +109,17 @@ public static class AssemblyLoadingManager
     private static void LoadModAssembly(ref dynamic modLoader, Assembly modAssembly)
     {
         AssemblyHidingManager.HideAssembly(modAssembly);
+        PortModMarseyLogger(modAssembly);
+
         _modInitMethod.Invoke(modLoader, (Assembly[])[modAssembly]);
 
-        var modEntry = GetModAssemblyEntryPoint(modAssembly);
-        if (modEntry != null)
+        Console.WriteLine($"Loaded assembly: {modAssembly.FullName}");
+
+        if (GetModAssemblyEntryPoint(modAssembly) is { } modEntry)
         {
-            PortModMarseyLogger(modAssembly);
-            _ = Task.Run(() => modEntry.Invoke(null, []));
+            Console.WriteLine($"Entering mod assem: {modAssembly.FullName} and method: {modEntry.Name}");
+            Enter(modEntry, async: true);
+            Console.WriteLine($"Entered mod assem: {modAssembly.FullName} and method: {modEntry.Name}");
         }
     }
 }

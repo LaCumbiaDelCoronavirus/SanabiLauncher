@@ -64,8 +64,8 @@ public static class AssemblyHidingManager
                 continue;
 
             HideAssembly(assembly);
-            //if (once)
-            //    break;
+            if (once)
+                break;
         }
     }
 

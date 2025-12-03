@@ -32,18 +32,7 @@ public static class PatchEntryAttributeManager
                         !attribute.RunLevel.HasFlag(runLevel))
                         continue;
 
-                    var parameters = method.GetParameters();
-                    object?[]? invokedParameters = null;
-                    if (parameters.Length == 1 &&
-                        parameters[0].ParameterType == AssemblyManager.Assemblies.GetType())
-                        invokedParameters = [AssemblyManager.Assemblies];
-
-                    if (attribute.Async)
-                        _ = Task.Run(async () => method.Invoke(null, invokedParameters));
-                    else
-                        method.Invoke(null, invokedParameters);
-
-                    Console.WriteLine($"Entered patch at {method.DeclaringType?.FullName}");
+                    AssemblyLoadingManager.Enter(method, attribute.Async);
                 }
             }
         }
