@@ -40,7 +40,23 @@ public static partial class PatchHelpers
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object? GetConstantFieldValue(Type? type, string fieldName)
     {
-        return type?.GetField(fieldName, BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)?.GetRawConstantValue();
+        return type?.GetField(fieldName, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)?.GetRawConstantValue();
+    }
+
+    /// <summary>
+    ///     Helper for setting a field on something. Does nothing
+    ///         if field doesn't exist.
+    /// </summary>
+    /// <param name="thing">Leave as null if the field is static.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static object? ForceSetField(object? thing, Type thingType, string fieldName, object? newValue)
+    {
+        var fieldInfo = thingType.GetField(fieldName, BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        if (fieldInfo == null)
+            return newValue;
+
+        fieldInfo.SetValue(thing, newValue);
+        return newValue;
     }
 
     /// <summary>
