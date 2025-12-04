@@ -52,9 +52,4 @@ public static class HarmonyManager
     {
         PatchHelpers.PatchPrefixFalse(ReflectionManager.GetTypeByQualifiedName("Robust.Client.GameController").TypeInitializer!);
     }
-
-    public static void Cloak()
-    {
-        PatchHelpers.PatchPrefixFalse(ReflectionManager.GetTypeByQualifiedName("Robust.Client.GameController").TypeInitializer!);
-    }
 }
