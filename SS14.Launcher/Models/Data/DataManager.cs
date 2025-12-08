@@ -349,6 +349,7 @@ public sealed class DataManager : ReactiveObject
             if (!_configEntries.TryGetValue(k, out var entry))
                 continue;
 
+            Console.WriteLine($"CR SETTING CVAR KEY: {k} to {v}");
             if (entry.Type == typeof(string))
                 Set((string?)v);
             else if (entry.Type == typeof(bool))
@@ -381,7 +382,7 @@ public sealed class DataManager : ReactiveObject
 
             var def = (CVarDef)field.GetValue(null)!;
             var method = baseMethod.MakeGenericMethod(def.ValueType);
-            _configEntries.Add(def.Name, (CVarEntry)method.Invoke(this, new object?[] { def })!);
+            _configEntries.Add(def.Name, (CVarEntry)method.Invoke(this, [def])!);
         }
     }
 
