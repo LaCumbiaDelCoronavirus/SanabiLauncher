@@ -1,13 +1,16 @@
-# SS14.Launcher
+SanabiLauncher is a fork of the launcher for SS14.
 
-<a href="https://weblate.spacestation14.com/engage/space-station-14-launcher/">
-<img src="https://weblate.spacestation14.com/widget/space-station-14-launcher/main/svg-badge.svg" alt="Translation status" />
-</a>
-
-This is the launcher you should be using to connect to SS14 servers. Server browser, content downloads, account management. It's got it all!
-
-# Development
-
-Useful environment variables for development:
-* `SS14_LAUNCHER_APPDATA_NAME=launcherTest` to change the user data directories the launcher stores its data in. This can be useful to avoid breaking your "normal" SS14 launcher data while developing something.
-* `SS14_LAUNCHER_OVERRIDE_AUTH=https://.../` to change the auth API URL to test against a local dev version of the API.
+Features include:
+- Decent patch-loader compatible with [Marseyloader](https://github.com/ValidHunters/Marseyloader) patches [(example here)](https://github.com/ValidHunters/SubversionExamplePatch)
+- - Comes with built-in patches including but not limited to:
+- - - HWId spoof patch
+    - All-commands-enabled patch
+    - Ahelp-menu-popup-disabled patch
+- - Support for externally-loaded `.dll` patches (see button to open patch directory somewhere in settings)
+  - Suspicious launcher-related assemblies (e.g. patch assemblies) are hidden from the game
+- Has actual operational security
+- - Account tokens are updated only for individual accounts, and only when they are in use
+  - Option to not log-in on launcher start
+  - You can use the launcher when logged-out as if you are logged in
+  - Option to start the launcher from the login page, and defer *all* web API calls until off of the login page (this option exists if you are paranoid *and know what you're doing*)
+  - Allows you to change the default hub API used for the server tabs (however it defaults to the [wizden hub *mirror*](https://cdn.spacestationmultiverse.com/wizden-hub-mirror/))
