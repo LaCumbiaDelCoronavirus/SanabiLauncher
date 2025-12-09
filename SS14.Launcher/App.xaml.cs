@@ -130,6 +130,8 @@ public class App : Application
         contentManager.Initialize();
 
         var viewModel = new MainWindowViewModel();
+        viewModel.InitialiseModel();
+
         var window = new MainWindow
         {
             DataContext = viewModel

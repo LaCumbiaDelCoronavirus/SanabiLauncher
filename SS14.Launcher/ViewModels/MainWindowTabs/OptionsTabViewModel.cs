@@ -117,6 +117,16 @@ public class OptionsTabViewModel : MainWindowTabViewModel
         }
     }
 
+    public bool StartLoggedIn
+    {
+        get => Cfg.GetCVar(SanabiCVars.StartLoggedIn);
+        set
+        {
+            Cfg.SetCVar(SanabiCVars.StartLoggedIn, value);
+            Cfg.CommitConfig();
+        }
+    }
+
     public bool StartOnLoginMenu
     {
         get => Cfg.GetCVar(SanabiCVars.StartOnLoginMenu);

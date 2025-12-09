@@ -81,6 +81,16 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         SetLoginMenuShowing(_cfg.GetCVar(SanabiCVars.StartOnLoginMenu));
     }
 
+    public void InitialiseModel()
+    {
+        if (_cfg.GetCVar(SanabiCVars.StartLoggedIn) &&
+            _cfg.SelectedLoginId is { } selectedLoginId &&
+            _loginMgr.Logins.TryLookup(selectedLoginId, out var loginData))
+        {
+            TrySwitchToAccount(loginData);
+        }
+    }
+
     private static bool _didStartingInit = false;
 
     /// <summary>
@@ -264,7 +274,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
                 break;
 
             case AccountLoginStatus.Available:
-                _ = _loginMgr.TryRefreshTokensAndSetActiveAccount(account);
+                _loginMgr.SetActiveAccount(account);
                 break;
 
             case AccountLoginStatus.Expired:

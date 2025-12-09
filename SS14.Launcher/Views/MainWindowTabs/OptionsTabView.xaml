@@ -154,13 +154,23 @@ You can put (one or more) images in 'SS14 Data folder -> launcher -> sanabi -> s
                    Text="When connecting to a server, willingly send HWID to Robust Auth? Modern servers require this otherwise you get disconnected with an appropriate message. Different from patching out the HWID."
                    Margin="8"/>
 
+
+        <CheckBox VerticalAlignment="Center"
+                  Margin="4"
+                  IsChecked="{Binding StartLoggedIn}"
+                  Content="Start launcher logged in"/>
+        <TextBlock VerticalAlignment="Center"
+                   TextWrapping="Wrap"
+                   Text="If checked, the launcher will start logged in."
+                   Margin="8"/>
+
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding StartOnLoginMenu}"
                   Content="Start launcher on login menu"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="As the launcher starts logged-out: should it start on the login menu (where no external API has yet been queried) or on the homepage (where hub API is likely to be queried). Turning this on can help against detection if you know what you are doing."
+                   Text="Should the launcher start on the login menu (where no external API has yet been queried) or on the homepage (where hub API is likely to be queried). Turning this on can help against detection if you know what you are doing."
                    Margin="8"/>
       </StackPanel>
     </DockPanel>

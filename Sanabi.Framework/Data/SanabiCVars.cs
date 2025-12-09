@@ -38,10 +38,18 @@ public static partial class SanabiCVars
     public static readonly CVarDef<bool> AllowHwid = CVarDef.Create("AllowHwid", false);
 
     /// <summary>
-    ///     As the launcher starts logged-out: should it start on the login menu
+    ///     Should the launcher start on the login menu
     ///         (where no external API has yet been queried) or on the homepage
-    ///         (where hub API is likely to be queried). Turning this on can help against detection
+    ///         (where hub API is likely to be queried)? Turning this on can help against detection
     ///         if you know what you are doing.
+    ///
+    ///     This is intended to work like this regardless of if the launcher is starting
+    ///         logged in or not.
     /// </summary>
     public static readonly CVarDef<bool> StartOnLoginMenu = CVarDef.Create("StartOnLoginMenu", false);
+
+    /// <summary>
+    ///     Does the launcher start logged in or logged out?
+    /// </summary>
+    public static readonly CVarDef<bool> StartLoggedIn = CVarDef.Create("StartLoggedIn", false);
 }
