@@ -125,20 +125,15 @@ public class App : Application
         var loc = Locator.Current.GetRequiredService<LocalizationManager>();
         var msgr = Locator.Current.GetRequiredService<LauncherMessaging>();
         var contentManager = Locator.Current.GetRequiredService<ContentManager>();
-        var overrideAssets = Locator.Current.GetRequiredService<OverrideAssetsManager>();
-        var launcherInfo = Locator.Current.GetRequiredService<LauncherInfoManager>();
 
         loc.Initialize();
-        launcherInfo.Initialize();
         contentManager.Initialize();
-        overrideAssets.Initialize();
 
         var viewModel = new MainWindowViewModel();
         var window = new MainWindow
         {
             DataContext = viewModel
         };
-        viewModel.OnWindowInitialized();
 
         loc.LanguageSwitched += () =>
         {

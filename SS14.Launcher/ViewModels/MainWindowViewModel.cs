@@ -3,11 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Reactive.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Avalonia.Animation;
 using Avalonia.Platform.Storage;
 using DynamicData;
 using ReactiveUI;
@@ -19,11 +17,11 @@ using SS14.Launcher.Localization;
 using SS14.Launcher.Models;
 using SS14.Launcher.Models.Data;
 using SS14.Launcher.Models.Logins;
+using SS14.Launcher.Models.OverrideAssets;
 using SS14.Launcher.Utility;
 using SS14.Launcher.ViewModels.Login;
 using SS14.Launcher.ViewModels.MainWindowTabs;
 using SS14.Launcher.Views;
-using SS14.Launcher.Views.MainWindowTabs;
 
 namespace SS14.Launcher.ViewModels;
 
@@ -31,7 +29,6 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
 {
     private readonly DataManager _cfg;
     private readonly LoginManager _loginMgr;
-    private readonly HttpClient _http;
     private readonly LauncherInfoManager _infoManager;
     private readonly LocalizationManager _loc;
 
@@ -49,7 +46,6 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
     {
         _cfg = Locator.Current.GetRequiredService<DataManager>();
         _loginMgr = Locator.Current.GetRequiredService<LoginManager>();
-        _http = Locator.Current.GetRequiredService<HttpClient>();
         _infoManager = Locator.Current.GetRequiredService<LauncherInfoManager>();
         _loc = LocalizationManager.Instance;
 
@@ -84,8 +80,39 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         SetLoginMenuShowing(_cfg.GetCVar(SanabiCVars.StartOnLoginMenu));
     }
 
+    private static bool _didStartingInit = false;
+
+    /// <summary>
+    ///     Initialises <see cref="LauncherInfoManager"/>
+    ///         and <see cref="OverrideAssetsManager"/>.
+    ///         Also checks for launcher update.
+    ///
+    ///     This accesses external hub API and is therefore
+    ///         a security risk.
+    /// </summary>
+    // TODO fix busytask not working here whatever i dont care.
+    private async void SCRISK_DoStartingInitialisation()
+    {
+        _didStartingInit = true;
+        BusyTask = "Doing endpoint initalisation";
+
+        var launcherInfo = Locator.Current.GetRequiredService<LauncherInfoManager>();
+        var overrideAssets = Locator.Current.GetRequiredService<OverrideAssetsManager>();
+
+        launcherInfo.Initialize();
+        overrideAssets.Initialize();
+
+        BusyTask = _loc.GetString("main-window-busy-checking-update");
+        await SCRISK_CheckLauncherUpdate();
+
+        BusyTask = null;
+    }
+
     public void SetLoginMenuShowing(bool value)
     {
+        if (!value && !_didStartingInit)
+            SCRISK_DoStartingInitialisation();
+
         ShowLoginMenu = value;
         this.RaisePropertyChanged(nameof(ShowLoginMenu));
 
@@ -161,15 +188,6 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
 
     public string Version => $"v{LauncherVersion.Version}";
 
-    public async void OnWindowInitialized()
-    {
-        BusyTask = _loc.GetString("main-window-busy-checking-update");
-        await CheckLauncherUpdate();
-        BusyTask = null;
-
-        // We should now start reacting to commands.
-    }
-
     public void OnDiscordButtonPressed()
     {
         Helpers.OpenUri(new Uri(ConfigConstants.DiscordUrl));
@@ -180,7 +198,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         Helpers.OpenUri(new Uri(ConfigConstants.WebsiteUrl));
     }
 
-    private async Task CheckLauncherUpdate()
+    private async Task SCRISK_CheckLauncherUpdate()
     {
         // await Task.Delay(1000);
         if (!ConfigConstants.DoVersionCheck)

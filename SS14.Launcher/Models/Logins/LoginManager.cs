@@ -23,16 +23,7 @@ public sealed class LoginManager : ReactiveObject
     private readonly DataManager _cfg;
     private readonly AuthApi _authApi;
 
-    private Guid? _activeLoginId = null;
-    private LoggedInAccount? _activeAccount = null;
-
     private readonly IObservableCache<ActiveLoginData, Guid> _logins;
-
-    /// <summary>
-    ///     ID of the currently active account, if any.
-    ///         Should not be set directly.
-    /// </summary>
-    public Guid? ActiveAccountId { get => _activeLoginId; }
 
     /// <summary>
     ///     <see cref="ActiveLoginData"> of the currently active
@@ -41,7 +32,7 @@ public sealed class LoginManager : ReactiveObject
     ///     Should not be set directly.
     /// </summary>
     //public LoggedInAccount? ActiveAccount { get => _activeLoginId == null ? null : _logins.Lookup(_activeLoginId.Value).Value; }
-    public LoggedInAccount? ActiveAccount { get => _activeAccount; }
+    public LoggedInAccount? ActiveAccount { get; private set; }
 
     /// <summary>
     ///     Raised when the active account is changed.
@@ -59,15 +50,14 @@ public sealed class LoginManager : ReactiveObject
         if (newAccountId != null)
         {
             var lookup = _logins.Lookup(newAccountId.Value);
-            _activeAccount = lookup.Value;
+            ActiveAccount = lookup.Value;
 
             if (!lookup.HasValue)
                 throw new ArgumentException("We do not have a login with that ID.");
         }
         else
-            _activeAccount = null;
+            ActiveAccount = null;
 
-        this.RaiseAndSetIfChanged(ref _activeLoginId, newAccountId);
         this.RaisePropertyChanged(nameof(ActiveAccount));
         _cfg.SelectedLoginId = newAccountId;
 
@@ -96,10 +86,8 @@ public sealed class LoginManager : ReactiveObject
     /// </summary>
     public void SetActiveAccount(LoggedInAccount? loggedInAccount)
     {
-        Log.Debug($"Set accaccount by data: {loggedInAccount?.Username}");
-        this.RaiseAndSetIfChanged(ref _activeLoginId, loggedInAccount?.UserId);
-        //_activeLoginId = loggedInAccount?.UserId;
-        _activeAccount = loggedInAccount;
+        ActiveAccount = loggedInAccount;
+        this.RaisePropertyChanged(nameof(ActiveAccount));
 
         OnActiveAccountChanged?.Invoke();
     }
@@ -130,7 +118,7 @@ public sealed class LoginManager : ReactiveObject
             .Transform(p => new ActiveLoginData(p))
             .OnItemRemoved(p =>
             {
-                if (p.LoginInfo.UserId == _activeLoginId)
+                if (p.LoginInfo.UserId == ActiveAccount?.UserId)
                     SetActiveAccount(null);
             })
             .AsObservableCache();
