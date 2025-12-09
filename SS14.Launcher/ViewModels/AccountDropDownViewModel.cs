@@ -36,7 +36,7 @@ public class AccountDropDownViewModel : ViewModelBase
         _loginMgr = Locator.Current.GetRequiredService<LoginManager>();
         _loc = LocalizationManager.Instance;
 
-        _loginMgr.OnActiveAccountChanged += () =>
+        _loginMgr.OnActiveAccountChanged += (_) =>
         {
             this.RaisePropertyChanged(nameof(LoginText));
             this.RaisePropertyChanged(nameof(AccountSwitchText));
