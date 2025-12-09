@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
@@ -14,9 +15,13 @@ using DynamicData;
 using JetBrains.Annotations;
 using Microsoft.Data.Sqlite;
 using Microsoft.Toolkit.Mvvm.Messaging;
+using Mono.Posix;
 using ReactiveUI;
+using Sanabi.Framework.Data;
 using Serilog;
+using Splat;
 using SS14.Common.Data.CVars;
+using SS14.Launcher.Models.Logins;
 using SS14.Launcher.Utility;
 
 namespace SS14.Launcher.Models.Data;
@@ -72,6 +77,7 @@ public sealed class DataManager : ReactiveObject
     public event Action? OnSpoofedFingerprintRegenerated;
 
     private bool _passSpoofedFingerprint = false;
+    private LoginManager _loginManager;
 
     static DataManager()
     {
@@ -82,6 +88,9 @@ public sealed class DataManager : ReactiveObject
 
     public DataManager()
     {
+        _loginManager = Locator.Current.GetRequiredService<LoginManager>();
+        _loginManager.OnActiveAccountChanged += OnActiveAccountChanged;
+
         Filters = new ServerFilterCollection(this);
         Hubs = new HubCollection(this);
         // Set up subscriptions to listen for when the list-data (e.g. logins) changes in any way.
@@ -109,6 +118,14 @@ public sealed class DataManager : ReactiveObject
         _engineInstallations.Connect()
             .ForEachChange(c => ChangeEngineInstallation(c.Reason, c.Current))
             .Subscribe();
+    }
+
+    private void OnActiveAccountChanged(LoggedInAccount? newlyActiveAccount)
+    {
+        if (newlyActiveAccount == null)
+            return;
+
+        AssignAccountCVars([newlyActiveAccount.UserId], typeof(SanabiAccountCVars), overwrite: false);
     }
 
     /// <summary>
@@ -374,7 +391,22 @@ public sealed class DataManager : ReactiveObject
         _dbCommandQueue.Clear();
     }
 
-    private void SearchCVars(MethodInfo baseMethod, FieldInfo[] fieldInfos)
+    /// <summary>
+    ///     Helper method for adding a <see cref="CVarEntry"/>.
+    ///         Incase of collisions with existing values, the original
+    ///         value is either overwritten with the new one or nothing happens,
+    ///         depending on <paramref name="overwrite"/>.
+    /// </summary>
+    /// <param name="overwrite">If true, CVar collisions will be handled by overwriting the old value with the new value. If false, nothing will happen and the CVar value stays the same.</param>
+    private void AssignCVar(MethodInfo baseMethod, CVarDef cVarDef, string assignedName, bool overwrite = false)
+    {
+        var method = baseMethod.MakeGenericMethod(cVarDef.ValueType);
+
+        if (overwrite || !_configEntries.ContainsKey(assignedName))
+            _configEntries[assignedName] = (CVarEntry)method.Invoke(this, [cVarDef])!;
+    }
+
+    private void SearchAndAssignCVars(MethodInfo baseMethod, FieldInfo[] fieldInfos)
     {
         foreach (var field in fieldInfos)
         {
@@ -382,8 +414,7 @@ public sealed class DataManager : ReactiveObject
                 continue;
 
             var def = (CVarDef)field.GetValue(null)!;
-            var method = baseMethod.MakeGenericMethod(def.ValueType);
-            _configEntries.Add(def.Name, (CVarEntry)method.Invoke(this, [def])!);
+            AssignCVar(baseMethod, def, def.Name);
         }
     }
 
@@ -394,9 +425,116 @@ public sealed class DataManager : ReactiveObject
         var baseMethod = typeof(DataManager)
             .GetMethod(nameof(CreateEntry), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
-        SearchCVars(baseMethod, typeof(CVars).GetFields(BindingFlags.Static | BindingFlags.Public));
-        SearchCVars(baseMethod, typeof(SanabiCVars).GetFields(BindingFlags.Static | BindingFlags.Public));
+        SearchAndAssignCVars(baseMethod, typeof(CVars).GetFields(BindingFlags.Static | BindingFlags.Public));
+        SearchAndAssignCVars(baseMethod, typeof(SanabiCVars).GetFields(BindingFlags.Static | BindingFlags.Public));
     }
+
+    /// <summary>
+    ///     Initialises CVars that are linked to each
+    ///         of the given <see cref="Guid"/>s. If one already
+    ///         exists, will either override it or do nothing according
+    ///         to <paramref name="overwrite"/>
+    ///
+    ///     CVars are initialised with their name being the
+    ///         guid's string representation + the CVar's name.
+    /// </summary>
+    /// <param name="overwrite">If true, CVar collisions will be handled by overwriting the old value with the new value. If false, nothing will happen and the CVar value stays the same.</param>
+    public void AssignAccountCVars(IEnumerable<Guid> guids, Type cVarClass, bool overwrite = false)
+    {
+        var baseMethod = typeof(DataManager)
+            .GetMethod(nameof(CreateEntry), BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        foreach (var fieldInfo in cVarClass.GetFields(BindingFlags.Static | BindingFlags.Public))
+        {
+            if (!fieldInfo.FieldType.IsAssignableTo(typeof(CVarDef)))
+                continue;
+
+            var cVarDef = (CVarDef)fieldInfo.GetValue(null)!;
+            foreach (var guid in guids)
+                AssignCVar(baseMethod, cVarDef, GetAccountCVarIdentifier(cVarDef, guid), overwrite: overwrite);
+        }
+    }
+
+    /// <summary>
+    ///     Helper function that returns the string representation of
+    ///         a <see cref="CVarDef"/> linked to an account.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static string GetAccountCVarIdentifier(string cVarName, Guid guid)
+        => guid.ToString() + cVarName;
+
+
+    /// <inheritdoc cref="GetAccountCVarIdentifier(string, Guid)"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static string GetAccountCVarIdentifier(CVarDef cVarDef, Guid guid)
+        => GetAccountCVarIdentifier(cVarDef.Name, guid);
+
+    /// <summary>
+    ///     Gets the value of a <see cref="CVarDef{T}"/> linked to a <see cref="Guid"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public T GetAccountCVar<T>(CVarDef<T> cVarDef, Guid guid)
+        => GetAccountCVarEntry(cVarDef, guid).Value;
+
+    /// <summary>
+    ///     Tries to get the value of a <see cref="CVarDef{T}"/> linked to a <see cref="Guid"/>.
+    ///         If no appropriate value is found, returns the given CVar's <see cref="CVarDef.DefaultValue"/>.
+    /// </summary>
+    public T GetAccountCVarOrDefault<T>(CVarDef<T> cVarDef, Guid? guid)
+        => guid == null ?
+            cVarDef.DefaultValue :
+            GetAccountCVarEntry(cVarDef, guid.Value).Value;
+
+    /// <summary>
+    ///     Gets the value of a <see cref="CVarDef{T}"/> linked to the <see cref="Guid"/>
+    ///         of the currently active account, if one exists. Otherwise,
+    ///         returns the given CVar's <see cref="CVarDef.DefaultValue"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public T GetActiveAccountCVarOrDefault<T>(CVarDef<T> cVarDef)
+        => GetAccountCVarOrDefault(cVarDef, _loginManager.ActiveAccount?.UserId);
+
+    /// <summary>
+    ///     Gets a CVar entry linked to a <see cref="Guid"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ICVarEntry<T> GetAccountCVarEntry<T>(CVarDef<T> cVarDef, Guid guid)
+    {
+        return (CVarEntry<T>)_configEntries[GetAccountCVarIdentifier(cVarDef, guid)];
+    }
+
+    /// <summary>
+    ///     Sets a CVar linked to a <see cref="Guid"/>.
+    /// </summary>
+    public void SetAccountCVar<T>(CVarDef<T> cVarDef, Guid guid, T value)
+    {
+        var entry = (CVarEntry<T>)GetAccountCVarEntry(cVarDef, guid);
+        if (EqualityComparer<T>.Default.Equals(entry.ValueInternal, value))
+            return;
+
+        entry.ValueInternal = value;
+        entry.FireValueChanged();
+
+        AddDbCommand(con => con.Execute(
+            "INSERT OR REPLACE INTO Config VALUES (@Key, @Value)",
+            new
+            {
+                Key = GetAccountCVarIdentifier(cVarDef, guid),
+                Value = value
+            }));
+    }
+
+    /// <summary>
+    ///     Sets a CVar linked to the <see cref="Guid"/> of the
+    ///         currently active account, if one exists. Otherwise
+    ///         does nothing.
+    /// </summary>
+    public void TrySetActiveAccountCVar<T>(CVarDef<T> cVarDef, T value)
+    {
+        if (_loginManager.ActiveAccount?.UserId is { } guid)
+            SetAccountCVar(cVarDef, guid, value);
+    }
+
 
     private CVarEntry<T> CreateEntry<T>(CVarDef<T> def)
     {

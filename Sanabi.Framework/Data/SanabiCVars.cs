@@ -1,7 +1,7 @@
 using JetBrains.Annotations;
 using SS14.Common.Data.CVars;
 
-namespace SS14.Launcher.Models.Data;
+namespace Sanabi.Framework.Data;
 
 /// <summary>
 ///     Contains definitions for all SanabiLauncher-specific configuration values.

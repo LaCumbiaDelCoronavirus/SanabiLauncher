@@ -1,6 +1,6 @@
 using SS14.Common.Data.CVars;
 
-namespace SS14.Launcher.Models.Data;
+namespace Sanabi.Framework.Data;
 
 // These are CVars relating to patches.
 

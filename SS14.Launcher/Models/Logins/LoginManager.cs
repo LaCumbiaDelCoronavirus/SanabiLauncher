@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using DynamicData;
 using ReactiveUI;
+using Sanabi.Framework.Data;
 using Serilog;
 using SS14.Launcher.Api;
 using SS14.Launcher.Models.Data;
@@ -20,7 +21,7 @@ public sealed class LoginManager : ReactiveObject
     // oh well.
     // Do I really care to fix that?
 
-    private readonly DataManager _cfg;
+    private readonly DataManager _dataManager;
     private readonly AuthApi _authApi;
 
     private readonly IObservableCache<ActiveLoginData, Guid> _logins;
@@ -35,9 +36,10 @@ public sealed class LoginManager : ReactiveObject
     public LoggedInAccount? ActiveAccount { get; private set; }
 
     /// <summary>
-    ///     Raised when the active account is changed.
+    ///     Raised when the active account is changed, with the single
+    ///         parameter being the new account.
     /// </summary>
-    public Action? OnActiveAccountChanged = null;
+    public Action<LoggedInAccount?>? OnActiveAccountChanged = null;
 
     /// <summary>
     ///     Sets a new account to be active in by it's ID, or logs out (if possible)
@@ -59,10 +61,10 @@ public sealed class LoginManager : ReactiveObject
             ActiveAccount = null;
 
         this.RaisePropertyChanged(nameof(ActiveAccount));
-        _cfg.SelectedLoginId = newAccountId;
+        _dataManager.SelectedLoginId = newAccountId;
 
-        if (_cfg.GetCVar(SanabiCVars.SpoofFingerprintOnLogin))
-            _cfg.RegenerateSpoofedFingerprint();
+        if (_dataManager.GetCVar(SanabiCVars.SpoofFingerprintOnLogin))
+            _dataManager.RegenerateSpoofedFingerprint();
 
         OnActiveAccountChanged?.Invoke();
     }
@@ -110,10 +112,10 @@ public sealed class LoginManager : ReactiveObject
 
     public LoginManager(DataManager cfg, AuthApi authApi)
     {
-        _cfg = cfg;
+        _dataManager = cfg;
         _authApi = authApi;
 
-        _logins = _cfg.Logins
+        _logins = _dataManager.Logins
             .Connect()
             .Transform(p => new ActiveLoginData(p))
             .OnItemRemoved(p =>
@@ -209,7 +211,7 @@ public sealed class LoginManager : ReactiveObject
 
     public void AddFreshLogin(LoginInfo info)
     {
-        _cfg.AddLogin(info);
+        _dataManager.AddLogin(info);
 
         _logins.Lookup(info.UserId).Value.SetStatus(AccountLoginStatus.Available);
     }

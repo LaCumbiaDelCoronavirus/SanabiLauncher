@@ -25,6 +25,7 @@ using SS14.Launcher.Models.OverrideAssets;
 using SS14.Launcher.Utility;
 using TerraFX.Interop.Windows;
 using LogEventLevel = Serilog.Events.LogEventLevel;
+using Sanabi.Framework.Data;
 
 namespace SS14.Launcher;
 

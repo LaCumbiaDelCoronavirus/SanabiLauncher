@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using JetBrains.Annotations;
 using Sanabi.Framework.Game.Patches;
-using SS14.Launcher.Models.Data;
 
 namespace Sanabi.Framework.Data;
 

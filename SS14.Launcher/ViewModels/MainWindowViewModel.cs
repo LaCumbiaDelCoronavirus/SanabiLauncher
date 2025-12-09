@@ -10,6 +10,7 @@ using Avalonia.Platform.Storage;
 using DynamicData;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
+using Sanabi.Framework.Data;
 using Serilog;
 using Splat;
 using SS14.Launcher.Api;
@@ -68,7 +69,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         AccountDropDown = new AccountDropDownViewModel(this);
         LoginViewModel = new MainWindowLoginViewModel(this);
 
-        _loginMgr.OnActiveAccountChanged += () =>
+        _loginMgr.OnActiveAccountChanged += (_) =>
         {
             this.RaisePropertyChanged(nameof(Username));
             this.RaisePropertyChanged(nameof(ShowLoginMenu));

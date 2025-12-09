@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Sanabi.Framework.Data;
 using Splat;
 using SS14.Launcher.Localization;
 using SS14.Launcher.Models.ContentManagement;
