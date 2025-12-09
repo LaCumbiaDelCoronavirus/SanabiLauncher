@@ -23,8 +23,14 @@ public sealed class AuthApi
         _httpClient = http;
     }
 
+    private static void BeforeAuthCall()
+    {
+        Log.Warning($"!!AUTHAPI CALL!!");
+    }
+
     public async Task<AuthenticateResult> AuthenticateAsync(AuthenticateRequest request)
     {
+        BeforeAuthCall();
         try
         {
             var authUrl = ConfigConstants.AuthUrl + "api/auth/authenticate";
@@ -76,6 +82,7 @@ public sealed class AuthApi
 
     public async Task<RegisterResult> RegisterAsync(string username, string email, string password)
     {
+        BeforeAuthCall();
         try
         {
             var request = new RegisterRequest(username, email, password);
@@ -118,6 +125,7 @@ public sealed class AuthApi
     /// <returns>Any errors that occured</returns>
     public async Task<string[]?> ForgotPasswordAsync(string email)
     {
+        BeforeAuthCall();
         try
         {
             var request = new ResetPasswordRequest(email);
@@ -145,6 +153,7 @@ public sealed class AuthApi
 
     public async Task<string[]?> ResendConfirmationAsync(string email)
     {
+        BeforeAuthCall();
         try
         {
             var request = new ResendConfirmationRequest(email);
@@ -177,6 +186,7 @@ public sealed class AuthApi
     /// </exception>
     public async Task<LoginToken?> RefreshTokenAsync(string token)
     {
+        BeforeAuthCall();
         try
         {
             var request = new RefreshRequest(token);
@@ -220,6 +230,7 @@ public sealed class AuthApi
 
     public async Task LogoutTokenAsync(string token)
     {
+        BeforeAuthCall();
         try
         {
             var request = new LogoutRequest(token);
@@ -254,6 +265,7 @@ public sealed class AuthApi
     /// </exception>
     public async Task<bool> CheckTokenAsync(string token)
     {
+        BeforeAuthCall();
         try
         {
             var authUrl = ConfigConstants.AuthUrl + "api/auth/ping";
@@ -310,15 +322,15 @@ public sealed class AuthApi
     public enum AuthenticateDenyResponseCode
     {
         // @formatter:off
-        None               =  0,
-        InvalidCredentials =  1,
-        AccountUnconfirmed =  2,
-        TfaRequired        =  3,
-        TfaInvalid         =  4,
-        AccountLocked      =  5,
+        None = 0,
+        InvalidCredentials = 1,
+        AccountUnconfirmed = 2,
+        TfaRequired = 3,
+        TfaInvalid = 4,
+        AccountLocked = 5,
 
         // Not actually from the API, but used internally.
-        UnknownError       = -1,
+        UnknownError = -1,
         // @formatter:on
     }
 
