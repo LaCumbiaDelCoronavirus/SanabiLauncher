@@ -349,7 +349,6 @@ public sealed class DataManager : ReactiveObject
             if (!_configEntries.TryGetValue(k, out var entry))
                 continue;
 
-            Console.WriteLine($"CR SETTING CVAR KEY: {k} to {v}. TYPES: {entry.Type} and {v.GetType()}");
             if (entry.Type == typeof(string))
                 Set((string?)v);
             else if (entry.Type == typeof(bool))
@@ -526,7 +525,6 @@ public sealed class DataManager : ReactiveObject
     public T GetCVar<T>([ValueProvider("SS14.Launcher.Models.Data.CVars")] CVarDef<T> cVar)
     {
         var entry = (CVarEntry<T>)_configEntries[cVar.Name];
-        Console.WriteLine($"CR GETTING CVAR KEY {cVar.Name} is {entry.Value}");
         return entry.Value;
     }
 
@@ -537,7 +535,6 @@ public sealed class DataManager : ReactiveObject
 
     public void SetCVar<T>([ValueProvider("SS14.Launcher.Models.Data.CVars")] CVarDef<T> cVar, T value)
     {
-        Console.WriteLine($"CR NEWSETTING CVAR KEY {cVar.Name} to {value}");
         var name = cVar.Name;
         var entry = (CVarEntry<T>)_configEntries[cVar.Name];
         if (EqualityComparer<T>.Default.Equals(entry.ValueInternal, value))
