@@ -257,7 +257,6 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
 
     public void TrySwitchToAccount(LoggedInAccount account)
     {
-        Log.Debug($"{account.Status} ACCSTAT");
         switch (account.Status)
         {
             case AccountLoginStatus.Unsure:
