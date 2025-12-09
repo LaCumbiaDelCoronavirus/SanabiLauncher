@@ -532,10 +532,16 @@ public sealed class DataManager : ReactiveObject
     ///         currently active account, if one exists. Otherwise
     ///         does nothing.
     /// </summary>
-    public void TrySetActiveAccountCVar<T>(CVarDef<T> cVarDef, T value)
+    /// <returns>Whether anything actually happened. However, nothing ever happens.</returns>
+    public bool TrySetActiveAccountCVar<T>(CVarDef<T> cVarDef, T value)
     {
         if (_loginManager?.ActiveAccount?.UserId is { } guid)
+        {
             SetAccountCVar(cVarDef, guid, value);
+            return true;
+        }
+
+        return false;
     }
 
 
