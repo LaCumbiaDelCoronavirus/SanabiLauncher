@@ -17,7 +17,6 @@ public static class PatchEntryAttributeManager
     /// </summary>
     public static void ProcessRunLevel(PatchRunLevel runLevel, Assembly[]? targetAssemblies = null)
     {
-        Console.WriteLine($"Running Patch RunLevel: {runLevel}");
         foreach (var assembly in targetAssemblies ?? AppDomain.CurrentDomain.GetAssemblies())
         {
             foreach (var type in assembly.GetTypes())
