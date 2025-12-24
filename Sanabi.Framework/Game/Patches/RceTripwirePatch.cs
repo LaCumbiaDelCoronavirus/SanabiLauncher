@@ -14,7 +14,7 @@ public static class RceTripwirePatch
     /// <summary>
     ///     Commands still allowed for RCE.
     /// </summary>
-    public static readonly List<string> IgnoredCommands = ["observe", "joingame", "mapping", "toggleready", "suicide", "ghostroles", "deadmin", "readmin", "say", "whisper", "me", "ghost"];
+    public static readonly List<string> IgnoredCommands = ["observe", "joingame", "mapping", "toggleready", "suicide", "ghostroles", "deadmin", "readmin", "say", "whisper", "me", "ghost", "ooc", "looc", "adminremarks", "forcemap"];
 
     [PatchEntry(PatchRunLevel.Engine)]
     public static void Patch()
