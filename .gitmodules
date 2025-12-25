@@ -1,3 +1,6 @@
 [submodule "Robust.LoaderApi"]
 	path = Robust.LoaderApi
 	url = https://github.com/space-wizards/Robust.LoaderApi.git
+[submodule "SanabiLauncher"]
+	path = SanabiLauncher
+	url = https://github.com/san-abi/SanabiLauncher
