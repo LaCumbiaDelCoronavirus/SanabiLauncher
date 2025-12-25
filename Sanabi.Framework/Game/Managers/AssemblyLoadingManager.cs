@@ -49,6 +49,40 @@ public static class AssemblyLoadingManager
 
         var internalModLoader = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.ModLoader");
 
+        // Find the internal method that accepts Assembly[] and cache it
+        if (_modInitMethod == null && internalModLoader != null)
+        {
+            var candidates = new List<string>();
+                foreach (var m in internalModLoader.GetMethods(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+                {
+                    var ps = m.GetParameters();
+                    if (ps.Length != 1)
+                    {
+                        candidates.Add($"{m.Name}({string.Join(", ", ps.Select(p => p.ParameterType.Name))})");
+                        continue;
+                    }
+
+                    var pType = ps[0].ParameterType;
+                    var ok =
+                        pType == typeof(Assembly[]) ||
+                        (pType.IsArray && pType.GetElementType() == typeof(Assembly)) ||
+                        typeof(IEnumerable<Assembly>).IsAssignableFrom(pType) ||
+                        pType == typeof(Assembly);
+
+                    if (ok)
+                    {
+                        _modInitMethod = m;
+                        SanabiLogger.LogInfo($"Found mod init method: {m.Name} ({pType.FullName})");
+                        break;
+                    }
+
+                    candidates.Add($"{m.Name}({pType.FullName})");
+                }
+
+            if (_modInitMethod == null)
+                SanabiLogger.LogError($"Mod init method not found on ModLoader; checked candidates: {string.Join(", ", candidates)}");
+        }
+
         PatchHelpers.PatchMethod(
             internalModLoader,
             "TryLoadModules",
@@ -61,11 +95,28 @@ public static class AssemblyLoadingManager
             return;
 
         foreach (var dll in externalDlls)
-            _assembliesPendingLoad.Push(Assembly.LoadFrom(dll));
+        {
+            try
+            {
+                var asm = Assembly.LoadFrom(dll);
+                _assembliesPendingLoad.Push(asm);
+                SanabiLogger.LogInfo($"Loaded mod dll: {dll} -> {asm.FullName}");
+            }
+            catch (Exception ex)
+            {
+                SanabiLogger.LogError($"Failed to Assembly.LoadFrom('{dll}'): {ex}");
+            }
+        }
     }
 
     private static void ModLoaderPostfix(ref dynamic __instance)
     {
+        if (__instance == null)
+        {
+            SanabiLogger.LogError("ModLoaderPostfix: __instance is null");
+            return;
+        }
+
         while (_assembliesPendingLoad.TryPop(out var assembly))
             LoadModAssembly(ref __instance, assembly);
     }
@@ -104,12 +155,53 @@ public static class AssemblyLoadingManager
 
     private static void LoadModAssembly(ref dynamic modLoader, Assembly modAssembly)
     {
-        AssemblyHidingManager.HideAssembly(modAssembly);
-        PortModMarseyLogger(modAssembly);
+        try
+        {
+            if (modLoader == null)
+            {
+                SanabiLogger.LogError("LoadModAssembly: modLoader is null");
+                return;
+            }
 
-        _modInitMethod.Invoke(modLoader, (Assembly[])[modAssembly]);
+            AssemblyHidingManager.HideAssembly(modAssembly);
+            PortModMarseyLogger(modAssembly);
 
-        if (GetModAssemblyEntryPoint(modAssembly) is { } modEntry)
-            Enter(modEntry, async: true);
+            if (_modInitMethod == null)
+            {
+                SanabiLogger.LogError("Mod init method not found on ModLoader; cannot load mod.");
+                return;
+            }
+
+            var p = _modInitMethod.GetParameters().FirstOrDefault()?.ParameterType;
+            if (p == null)
+            {
+                SanabiLogger.LogError("Mod init method has no parameters; cannot call it.");
+                return;
+            }
+
+            object arg;
+            if (p == typeof(Assembly))
+                arg = modAssembly;
+            else if (p.IsArray && p.GetElementType() == typeof(Assembly))
+                arg = new Assembly[] { modAssembly };
+            else if (typeof(IEnumerable<Assembly>).IsAssignableFrom(p))
+                arg = (IEnumerable<Assembly>)new Assembly[] { modAssembly };
+            else
+            {
+                SanabiLogger.LogError($"Unsupported mod init parameter type: {p.FullName}");
+                return;
+            }
+
+            var target = _modInitMethod.IsStatic ? null : (object)modLoader;
+            _modInitMethod.Invoke(target, new object[] { arg });
+            SanabiLogger.LogInfo($"Invoked ModLoader init for {modAssembly.FullName} (param: {p.FullName})");
+
+            if (GetModAssemblyEntryPoint(modAssembly) is { } modEntry)
+                Enter(modEntry, async: true);
+        }
+        catch (Exception ex)
+        {
+            SanabiLogger.LogError($"LoadModAssembly error for {modAssembly.FullName}: {ex}");
+        }
     }
 }
