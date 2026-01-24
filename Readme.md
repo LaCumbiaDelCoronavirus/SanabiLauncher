@@ -7,7 +7,7 @@ Features include:
 - - - HWId spoof patch
     - All-commands-enabled patch
     - Ahelp-menu-popup-disabled patch (todo: fix)
-- - Support for externally-loaded mod assemblies (`.ddll`s, see button to open patch directory somewhere in Sanabi tab), can be selectively loaded (maximum of 64 mods in directory)
+- - Support for externally-loaded mod assemblies (`.dll`s, see button to open patch directory somewhere in Sanabi tab), can be selectively loaded (maximum of 64 mods in directory)
   - Suspicious launcher-related assemblies (e.g. patch assemblies) are hidden from the game
 - Gives you access to tent for camouflage against drones
 - - Account tokens are updated only for individual accounts, and only when they are in use
