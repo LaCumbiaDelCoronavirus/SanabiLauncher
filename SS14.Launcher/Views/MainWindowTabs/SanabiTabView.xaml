@@ -17,6 +17,13 @@
   <ScrollViewer HorizontalScrollBarVisibility="Disabled">
     <DockPanel>
       <StackPanel Orientation="Vertical">
+        <TextBlock VerticalAlignment="Center"
+                   TextWrapping="Wrap"
+                   Text="Auth-server URLs, seperated by | with no space. | separates groups of URLs (i.e., one authserver) and commas separate individual URLs that point to that server (fallbacks). Spaces are not supported. For example: 'https://authone.com|https://authtwo.xyz,https://backup.authtwo.io'."
+                   Margin="8"/>
+        <TextBox Name="AuthServersTextBox"
+                 Text="{Binding AuthServersText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
         <!-- PATCHING START -->
 
         <TextBlock HorizontalAlignment="Center"

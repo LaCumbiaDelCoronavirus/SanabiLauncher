@@ -88,7 +88,7 @@ public static class SanabiAuthManager
 
         return string.Join(AuthDataSetSeparator, sets);
     }
-
+    
     public static void OnAccountUpdated(LoggedInAccount? loggedInAccount)
     {
         if (loggedInAccount is not { })

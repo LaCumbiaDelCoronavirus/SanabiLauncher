@@ -33,8 +33,8 @@ public class LoginViewModel : BaseLoginViewModel
         _loginMgr = loginMgr;
         _dataManager = dataManager;
 
-        this.WhenAnyValue(x => x.EditingUsername, x => x.EditingPassword)
-            .Subscribe(s => { IsInputValid = !string.IsNullOrEmpty(s.Item1) && !string.IsNullOrEmpty(s.Item2); });
+        this.WhenAnyValue(x => x.EditingUsername, x => x.EditingPassword, x => x.EditingPrimaryAuthServer)
+            .Subscribe(s => { IsInputValid = !string.IsNullOrEmpty(s.Item1) && !string.IsNullOrEmpty(s.Item2) && !string.IsNullOrEmpty(s.Item3); });
     }
 
     public async void OnLogInButtonPressed()

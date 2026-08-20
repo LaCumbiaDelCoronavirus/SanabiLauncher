@@ -246,9 +246,7 @@ public sealed class LoginManager : ReactiveObject
 
     private async Task<AccountLoginStatus> UpdateSingleAccountStatus(ActiveLoginData data)
     {
-        // Update auth servers if needed
-        if (data.SupportedAuthServers is not { })
-            SanabiAuthManager.OnAccountUpdated(data);
+        SanabiAuthManager.OnAccountUpdated(data);
 
         foreach (var authInfo in data.SupportedAuthServers!)
         {

@@ -167,6 +167,19 @@ public class SanabiTabViewModel : MainWindowTabViewModel
         }
     }
 
+    public string AuthServersText
+    {
+        get => Cfg.GetActiveAccountCVarOrDefault(SanabiAccountCVars.AuthServers);
+        set
+        {
+            Cfg.TrySetActiveAccountCVar(SanabiAccountCVars.AuthServers, value);
+            Cfg.CommitConfig();
+
+            this.RaisePropertyChanged(propertyName: nameof(AuthServersText));
+        }
+    }
+
+
     public bool PingServers
     {
         get => Cfg.GetCVar(SanabiCVars.PingServers);
