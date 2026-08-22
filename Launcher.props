@@ -11,7 +11,7 @@
         6. {!SANABI!} If necessary, change ConfigConstants.CurrentLauncherVersion, FallbackLauncherInfoData, and the pastebin, for new-launcher-update
         -->
         <TargetFramework>net10.0</TargetFramework>
-        <Version>2.21.11</Version>
+        <Version>2.21.12</Version>
 
         <!--
         CET breaks for people on older, but still supported Windows versions:
