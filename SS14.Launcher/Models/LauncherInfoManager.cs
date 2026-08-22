@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -16,8 +17,9 @@ namespace SS14.Launcher.Models;
 /// </summary>
 public sealed class LauncherInfoManager(HttpClient httpClient)
 {
+    private const string FallbackMessageLocale = "en-US";
+
     private readonly Random _messageRandom = new();
-    private string[]? _messages;
 
     private LauncherInfoModel? _model;
 
@@ -60,19 +62,37 @@ public sealed class LauncherInfoManager(HttpClient httpClient)
             info = JsonSerializer.Deserialize<LauncherInfoModel>(SanabiGlobal.FallbackLauncherInfoData, options: JsonSerializerOptions.Web);
         }
 
-        // This is future-proofed to support multiple languages,
-        // but for now the launcher only supports English so it'll have to do.
-        info!.Messages.TryGetValue("en-US", out _messages);
-
         _model = info;
     }
 
     public string? GetRandomMessage()
     {
-        if (_messages == null)
+        var messages = GetMessagesForCurrentCulture();
+        if (messages == null || messages.Length == 0)
             return null;
 
-        return _messages[_messageRandom.Next(_messages.Length)];
+        return messages[_messageRandom.Next(messages.Length)];
+    }
+
+    /// <summary>
+    ///     Picks the message list matching the launcher's currently selected language
+    ///     (falling back to parent cultures, then <see cref="FallbackMessageLocale"/>).
+    /// </summary>
+    private string[]? GetMessagesForCurrentCulture()
+    {
+        var messages = _model?.Messages;
+        if (messages == null)
+            return null;
+
+        for (var culture = CultureInfo.CurrentUICulture;
+             !culture.Equals(CultureInfo.InvariantCulture);
+             culture = culture.Parent)
+        {
+            if (messages.TryGetValue(culture.Name, out var localeMessages))
+                return localeMessages;
+        }
+
+        return messages.GetValueOrDefault(FallbackMessageLocale);
     }
 
     public sealed record LauncherInfoModel(

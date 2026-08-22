@@ -38,6 +38,7 @@
     <PackageVersion Include="libsodium" Version="1.0.20.1" />
     <PackageVersion Include="System.Net.Http.WinHttpHandler" Version="8.0.0" />
     <PackageVersion Include="Linguini.Bundle" Version="0.8.1" />
+    <PackageVersion Include="AnimatedImage.Avalonia" Version="2.1.4" />
     <!-- Test stuff -->
     <PackageVersion Include="nunit" Version="3.13.3"/>
     <PackageVersion Include="NUnit.Analyzers" Version="3.6.1"/>

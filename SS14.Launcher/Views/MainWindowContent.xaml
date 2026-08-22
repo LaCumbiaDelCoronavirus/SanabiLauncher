@@ -7,6 +7,7 @@
              xmlns:loc="clr-namespace:SS14.Launcher.Localization"
              xmlns:mainWindowTabs="clr-namespace:SS14.Launcher.ViewModels.MainWindowTabs"
              xmlns:avalonia="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls"
+             xmlns:anim="https://github.com/whistyun/AnimatedImage.Avalonia"
              mc:Ignorable="d"
              d:DesignWidth="800"
              d:DesignHeight="450"
@@ -175,7 +176,7 @@
               </ItemsControl>
 
               <Image IsVisible="{Binding HasChangelogMedia}"
-                     Source="{Binding ChangelogMediaBitmap}"
+                     anim:ImageBehavior.AnimatedSource="{Binding ChangelogMediaSource}"
                      Stretch="Uniform"
                      MaxWidth="420"
                      HorizontalAlignment="Center"

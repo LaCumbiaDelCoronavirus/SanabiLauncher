@@ -55,7 +55,7 @@ login-resend-success-title = Confirmation email sent
 login-resend-success-message = A confirmation email has been sent to your email address.
 login-resend-error-title = Error
 
-main-window-out-of-date-warning-desc = A new version of the launcher exists and this message is only here because it's probably worth downloading! No, i don't know nor care enough to know how to make this overlay window not touch the borders of the screen. You may either download the new version at the given link or dismiss this warning.
+main-window-out-of-date-warning-desc = A new version of the launcher exists and this message is only here because it's probably worth downloading! You may either download the new version at the given link or dismiss this warning.
 main-window-out-of-date-dismiss = Fuck off
 
 main-window-busy-endpoint-init = Doing endpoint initialisation

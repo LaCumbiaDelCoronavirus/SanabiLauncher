@@ -7,10 +7,10 @@ using System.Net.Http;
 using System.Reactive.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using AnimatedImage.Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using DynamicData;
 using ReactiveUI;
@@ -44,9 +44,9 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
     [Reactive] public bool OutOfDate { get; private set; }
 
     [Reactive] public IReadOnlyList<ChangelogEntryViewModel> ChangelogEntries { get; private set; } = [];
-    [Reactive] public Bitmap? ChangelogMediaBitmap { get; private set; }
+    [Reactive] public AnimatedImageSource? ChangelogMediaSource { get; private set; }
     public bool HasChangelogEntries => ChangelogEntries.Count > 0;
-    public bool HasChangelogMedia => ChangelogMediaBitmap != null;
+    public bool HasChangelogMedia => ChangelogMediaSource != null;
 
     public HomePageViewModel HomeTab { get; }
     public ServerListTabViewModel ServersTab { get; }
@@ -89,7 +89,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
 
         this.WhenAnyValue(x => x.ChangelogEntries)
             .Subscribe(_ => this.RaisePropertyChanged(nameof(HasChangelogEntries)));
-        this.WhenAnyValue(x => x.ChangelogMediaBitmap)
+        this.WhenAnyValue(x => x.ChangelogMediaSource)
             .Subscribe(_ => this.RaisePropertyChanged(nameof(HasChangelogMedia)));
     }
 
@@ -330,7 +330,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
 
     private async Task LoadChangelogMedia(string mediaUrl)
     {
-        ChangelogMediaBitmap = null;
+        ChangelogMediaSource = null;
 
         if (!Uri.TryCreate(mediaUrl, UriKind.Absolute, out var uri))
             return;
@@ -339,7 +339,10 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         {
             var http = Locator.Current.GetRequiredService<HttpClient>();
             await using var stream = await http.GetStreamAsync(uri);
-            using var memStream = new MemoryStream();
+
+            // Kept alive (not disposed) for the lifetime of the bound AnimatedImageSourceStream,
+            // which re-reads from it while rendering animation frames.
+            var memStream = new MemoryStream();
             await stream.CopyToAsync(memStream);
 
             if (!IsSupportedImage(memStream.GetBuffer().AsSpan(0, (int) memStream.Length)))
@@ -349,12 +352,12 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
             }
 
             memStream.Position = 0;
-            ChangelogMediaBitmap = new Bitmap(memStream);
+            ChangelogMediaSource = new AnimatedImageSourceStream(memStream);
         }
         catch (Exception e)
         {
             Log.Warning(e, "Failed to load changelog media image from {Url}", mediaUrl);
-            ChangelogMediaBitmap = null;
+            ChangelogMediaSource = null;
         }
     }
 

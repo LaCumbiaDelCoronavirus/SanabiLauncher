@@ -6,8 +6,8 @@ The launcher fetches a JSON document from `ConfigConstants.UrlLauncherInfo` (see
 [`SS14.Launcher/ConfigConstants.cs`](SS14.Launcher/ConfigConstants.cs)) on startup, which is
 deserialized into `LauncherInfoManager.LauncherInfoModel`
 (see [`SS14.Launcher/Models/LauncherInfoManager.cs`](SS14.Launcher/Models/LauncherInfoManager.cs)).
-This controls things like random home-screen messages, out-of-date detection, asset overrides,
-and the changelog shown when the launcher is out of date.
+This controls things like random flavour-text messages shown on the connecting screen, out-of-date
+detection, asset overrides, and the changelog shown when the launcher is out of date.
 
 If the endpoint is unreachable or returns invalid data, the launcher falls back to the JSON
 embedded in `SanabiGlobal.FallbackLauncherInfoData`
@@ -19,14 +19,21 @@ A real payload must **not** contain the `//` comments below.
 
 ```jsonc
 {
-  // Per-locale lists of random flavour-text messages shown on the home screen.
-  // Only "en-US" is currently read (see LauncherInfoManager.LoadData), but the
-  // dictionary shape is future-proofed for other locales.
-  // Missing/empty -> no random message is shown.
+  // Per-locale lists of random flavour-text messages shown on the connecting screen
+  // (see RandomMessage.xaml.cs / ConnectingOverlay.xaml). Keys are culture names
+  // (e.g. "en-US", "ru", "de", matching LocalizationManager.AvailableLanguages).
+  // The launcher picks the list matching the currently selected language, walking up
+  // parent cultures (e.g. "ru-RU" -> "ru") if there's no exact match, then falling
+  // back to "en-US" if that locale has no messages of its own
+  // (see LauncherInfoManager.GetMessagesForCurrentCulture). Missing/empty for a given
+  // locale (with no "en-US" fallback available either) -> no random message is shown.
   "messages": {
     "en-US": [
       "First random message",
       "Second random message"
+    ],
+    "ru": [
+      "Первое случайное сообщение"
     ]
   },
 
@@ -69,7 +76,10 @@ A real payload must **not** contain the `//` comments below.
   // download) is silently skipped. PNG is the primary/expected format; JPEG,
   // GIF, BMP, and WEBP are also supported on a best-effort basis
   // (see MainWindowViewModel.LoadChangelogMedia / IsSupportedImage).
-  "changelogMediaUrl": "https://example.com/changelog-media.png"
+  // Rendering is done via AnimatedImage.Avalonia's AnimatedSource, so an
+  // animated GIF (or animated/static WEBP, PNG, etc.) will actually play,
+  // not just show its first frame.
+  "changelogMediaUrl": "https://example.com/changelog-media.gif"
 }
 ```
 

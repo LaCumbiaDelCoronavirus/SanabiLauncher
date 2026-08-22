@@ -83,7 +83,7 @@ login-resend-success-message = Письмо для подтверждения б
 # Strings for the "resend confirmation email" view on login
 login-resend-error-title = Ошибка
 # Strings for the general main window layout of the launcher
-main-window-out-of-date-warning-desc = Вышла новая версия лаунчера, и это сообщение здесь только потому, что её, вероятно, стоит скачать! Нет, я не знаю и не хочу разбираться, как сделать так, чтобы это окно не касалось краёв экрана. Вы можете либо скачать новую версию по указанной ссылке, либо закрыть это предупреждение.
+main-window-out-of-date-warning-desc = Вышла новая версия лаунчера, и это сообщение здесь только потому, что её, вероятно, стоит скачать! Вы можете либо скачать новую версию по указанной ссылке, либо закрыть это предупреждение.
 # Strings for the general main window layout of the launcher
 main-window-out-of-date-dismiss = Да ну нахуй
 # Strings for the general main window layout of the launcher
