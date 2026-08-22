@@ -104,6 +104,10 @@ tab-home-file-picker-title = Выберите файл повтора или н�
 tab-home-file-picker-filter-replay-or-bundle = Файлы повтора или набора контента
 # Strings for the "options" tab
 tab-options-restart-message = Лаунчер сейчас перезапустится.
+# Strings for the "options" tab
+tab-options-show-changelog = Показать список изменений
+# Strings for the "options" tab
+tab-options-show-changelog-desc = Показывает список изменений на главной странице, как будто лаунчер устарел.
 # Strings for the "Sanabi" tab
 tab-sanabi-title = Sanabi
 # Strings for the "Sanabi" tab

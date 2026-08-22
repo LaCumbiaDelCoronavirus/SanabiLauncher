@@ -107,6 +107,15 @@ You can put (one or more) images in 'SS14 Data folder -> launcher -> sanabi -> s
                    Text="{loc:Loc tab-options-hub-settings-desc}"
                    Margin="8"/>
 
+        <Button Content="{loc:Loc tab-options-show-changelog}"
+                Margin="4"
+                Command="{Binding ShowChangelog}"
+                HorizontalAlignment="Left"/>
+        <TextBlock VerticalAlignment="Center"
+                   TextWrapping="Wrap"
+                   Text="{loc:Loc tab-options-show-changelog-desc}"
+                   Margin="8"/>
+
         <Separator Classes="horizontal"
                    Margin="0,5,0,5"/>
       </StackPanel>

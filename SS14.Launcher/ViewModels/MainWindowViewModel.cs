@@ -41,7 +41,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
     private int _selectedIndex;
 
     public DataManager Cfg => _cfg;
-    [Reactive] public bool OutOfDate { get; private set; }
+    [Reactive] public bool OutOfDate { get; set; }
 
     [Reactive] public IReadOnlyList<ChangelogEntryViewModel> ChangelogEntries { get; private set; } = [];
     [Reactive] public AnimatedImageSource? ChangelogMediaSource { get; private set; }
@@ -63,7 +63,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         ServersTab = new ServerListTabViewModel(this, _cfg);
         NewsTab = new NewsTabViewModel();
         HomeTab = new HomePageViewModel(this);
-        OptionsTab = new OptionsTabViewModel();
+        OptionsTab = new OptionsTabViewModel(this);
 
         var tabs = new List<MainWindowTabViewModel>();
         tabs.Add(HomeTab);

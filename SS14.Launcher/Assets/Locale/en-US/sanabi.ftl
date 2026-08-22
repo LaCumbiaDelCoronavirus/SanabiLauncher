@@ -72,6 +72,8 @@ tab-home-file-picker-title = Select replay or content bundle file
 tab-home-file-picker-filter-replay-or-bundle = Replay or content bundle files
 
 tab-options-restart-message = The launcher will restart now.
+tab-options-show-changelog = Show changelog
+tab-options-show-changelog-desc = Shows the changelog overlay on the home page, as if the launcher were out of date.
 
 ## Strings for the "Sanabi" tab
 
