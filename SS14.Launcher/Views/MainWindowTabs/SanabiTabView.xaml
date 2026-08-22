@@ -20,16 +20,16 @@
         <!-- PATCHING START -->
 
         <TextBlock HorizontalAlignment="Center"
-                   Text="Patching"
+                   Text="{loc:Loc tab-sanabi-heading-patching}"
                    Classes="NanoHeading"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding PatchingEnabled}"
-                  Content="Enable patching"/>
+                  Content="{loc:Loc tab-sanabi-enable-patching}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="Enable any kind of patching? Inherently enables engine patching."
+                   Text="{loc:Loc tab-sanabi-enable-patching-desc}"
                    Margin="8"/>
 
         <!-- <CheckBox VerticalAlignment="Center"
@@ -44,10 +44,10 @@
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding PatchingLevel}"
-                  Content="Patch content"/>
+                  Content="{loc:Loc tab-sanabi-patch-content}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="If checked, then both engine and content will be patched. Otherwise, only patches engine. Obviously only applies if patching is enabled."
+                   Text="{loc:Loc tab-sanabi-patch-content-desc}"
                    Margin="8"/>
 
         <Separator Classes="horizontal"
@@ -56,59 +56,59 @@
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding HwidPatchEnabled}"
-                  Content="Enable HWID spoofing patch"/>
+                  Content="{loc:Loc tab-sanabi-hwid-patch}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="Patches out HWID to be spoofed when connecting to a server. Only applies if engine patching is enabled. Based on the account's seed configured in the config."
+                   Text="{loc:Loc tab-sanabi-hwid-patch-desc}"
                    Margin="8"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding BetterFullscreenPatchEnabled}"
-                  Content="Borderless windowed as fullscreen patch"/>
+                  Content="{loc:Loc tab-sanabi-fullscreen-patch}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="Patches out RT's implementation of fullscreen and converts it to be borderless windowed. Only applies if engine patching is enabled. May fix your screen flickering when moving out of focus. Buggy on non-Windows systems."
+                   Text="{loc:Loc tab-sanabi-fullscreen-patch-desc}"
                    Margin="8"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding UserDataPatchEnabled}"
-                  Content="UserData Virtualisation"/>
+                  Content="{loc:Loc tab-sanabi-userdata-virt}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="Why? SS14 client-side server content has read+write access to a UserData directory, which can be used to save data across sessions, and also be used against *you*. Enabling this will prevent writes to this directory from being saved to the disk, however reads can still happen. This can break some things if they havent been saved to disk yet, like parallax caches."
+                   Text="{loc:Loc tab-sanabi-userdata-virt-desc}"
                    Margin="8"/>
 
         <Separator Classes="horizontal"
                    Margin="0,5,0,5"/>
 
         <TextBlock HorizontalAlignment="Center"
-                   Text="External mods"
+                   Text="{loc:Loc tab-sanabi-heading-external-mods}"
                    Classes="NanoHeadingMedium"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding LoadExternalMods}"
-                  Content="Enable external mods"/>
+                  Content="{loc:Loc tab-sanabi-enable-external-mods}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="If patching is enabled, do we patch external mods; those that are in the mod's mod directory? Zip-file mods larger than 45MiB uncompressed will not be extracted fully and will most likely crash the game upon load."
+                   Text="{loc:Loc tab-sanabi-enable-external-mods-desc}"
                    Margin="8"/>
 
         <TextBlock VerticalAlignment="Center"
                    Foreground="Red"
                    FontWeight="Bold"
                    TextWrapping="Wrap"
-                   Text="Loaded external mods are not checked for malware and therefore may pose a risk to your computer; enable external mods at your own risk."
+                   Text="{loc:Loc tab-sanabi-external-mods-warning}"
                    Margin="2"/>
 
         <ScrollViewer DockPanel.Dock="Top">
           <StackPanel Spacing="2">
             <TextBlock DockPanel.Dock="Left"
-                       Text="Selected external mods"
+                       Text="{loc:Loc tab-sanabi-selected-external-mods}"
                        Classes="NanoHeadingSmall"/>
-            <Button Content="Rescan mods"
+            <Button Content="{loc:Loc tab-sanabi-rescan-mods}"
                     HorizontalAlignment="Center"
                     Command="{Binding RefreshMods}"
                     Margin="0,5,0,10"/>
@@ -132,7 +132,7 @@
           </StackPanel>
         </ScrollViewer>
 
-        <Button Content="Mod Directory"
+        <Button Content="{loc:Loc tab-sanabi-mod-directory}"
                 HorizontalAlignment="Center"
                 Command="{Binding OpenModDirectory}"
                 Margin="0,10,0,5"/>
@@ -144,44 +144,44 @@
         <!-- SPOOFING START -->
 
         <TextBlock HorizontalAlignment="Center"
-                   Text="Spoofing"
+                   Text="{loc:Loc tab-sanabi-heading-spoofing}"
                    Classes="NanoHeading"/>
 
         <TextBlock HorizontalAlignment="Center"
-                   Text="Fingerprint"
+                   Text="{loc:Loc tab-sanabi-heading-fingerprint}"
                    Classes="NanoHeadingMedium"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding PassFingerprint}"
-                  Content="Pass launcher fingerprint"/>
+                  Content="{loc:Loc tab-sanabi-pass-fingerprint}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="Should the launcher pass it's fingerprint to everything via http? Turning this off may be sus."
+                   Text="{loc:Loc tab-sanabi-pass-fingerprint-desc}"
                    Margin="8"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding PassSpoofedFingerprint}"
-                  Content="Spoof launcher fingerprint"/>
+                  Content="{loc:Loc tab-sanabi-spoof-fingerprint}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="If passing the launcher fingerprint, do we create and use new, spoofed random one every time the launcher is started?"
+                   Text="{loc:Loc tab-sanabi-spoof-fingerprint-desc}"
                    Margin="8"/>
 
         <Separator Classes="horizontal"
                    Margin="0,5,0,5"/>
         <TextBlock HorizontalAlignment="Center"
-                   Text="HWID"
+                   Text="{loc:Loc tab-sanabi-heading-hwid}"
                    Classes="NanoHeadingMedium"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding AllowHwid}"
-                  Content="Send HWID to server"/>
+                  Content="{loc:Loc tab-sanabi-send-hwid}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="When connecting to a server, willingly send HWID to Robust Auth? Modern servers require this otherwise you get disconnected with an appropriate message. Different from patching out the HWID."
+                   Text="{loc:Loc tab-sanabi-send-hwid-desc}"
                    Margin="8"/>
 
         <Separator Classes="horizontal"
@@ -189,11 +189,11 @@
 
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="Seed to use when generating spoofed HWID and spoofed fingerprint. This is interpreted as an unsigned 64-bit integer [ulong]; it is 20 digits at maximum."
+                   Text="{loc:Loc tab-sanabi-seed-desc}"
                    Margin="8"/>
         <TextBox Name="UlongBox"
                  Text="{Binding SpoofingSeedText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-        <Button Content="Regenerate account seed"
+        <Button Content="{loc:Loc tab-sanabi-regenerate-seed}"
                 DockPanel.Dock="Bottom"
                 HorizontalAlignment="Left"
                 Command="{Binding RegenerateAccountSeed}"/>
@@ -201,76 +201,76 @@
         <Separator Classes="horizontal"
                    Margin="0,5,0,5"/>
         <TextBlock HorizontalAlignment="Center"
-                   Text="Misc."
+                   Text="{loc:Loc tab-sanabi-heading-misc}"
                    Classes="NanoHeadingMedium"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding StartOnLoginMenu}"
-                  Content="Start launcher on login menu"/>
+                  Content="{loc:Loc tab-sanabi-start-on-login-menu}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="Should the launcher start on the login menu (where no external API has yet been queried) or on the homepage (where hub API is likely to be queried). Useless 98% of the time."
+                   Text="{loc:Loc tab-sanabi-start-on-login-menu-desc}"
                    Margin="8"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding PingServers}"
-                  Content="Ping servers in dropdown"/>
+                  Content="{loc:Loc tab-sanabi-ping-servers}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="Should server ping be determined when opening their dropdown? Some ABSOLUTELY 'SESSED servers might use this to detect you. Note that not all servers will support being pinged via ICMP, so most of those which don't accept ICMP pings will usually give TimedOut as the error reason."
+                   Text="{loc:Loc tab-sanabi-ping-servers-desc}"
                    Margin="8"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding RandomiseServerPingQueryDelay}"
-                  Content="Randomise ping-query delay"/>
+                  Content="{loc:Loc tab-sanabi-randomise-ping-delay}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="When you ping a server, multiple pings are done. There is a delay between those ping queries. When this is off, the delay is uniform (always the same). When this is on, the delay is randomised each time. SOMEONE asked me to code this. This will give a flat increase to how long it takes to ping a server, usually."
+                   Text="{loc:Loc tab-sanabi-randomise-ping-delay-desc}"
                    Margin="8"/>
 
         <!-- VIS. START -->
 
         <TextBlock HorizontalAlignment="Center"
-                   Text="Visual"
+                   Text="{loc:Loc tab-sanabi-heading-visual}"
                    Classes="NanoHeading"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding FancyBackground}"
-                  Content="Use acrylic blur effect for homepage"/>
+                  Content="{loc:Loc tab-sanabi-acrylic-blur}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="Forcefully disable transitioning images and use acrylic blur background on the homepage."
+                   Text="{loc:Loc tab-sanabi-acrylic-blur-desc}"
                    Margin="8"/>
 
         <!-- DEBUG START -->
 
         <TextBlock HorizontalAlignment="Center"
-                   Text="Debug"
+                   Text="{loc:Loc tab-sanabi-heading-debug}"
                    Classes="NanoHeading"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding HarmonyDebug}"
-                  Content="Debug mode"/>
+                  Content="{loc:Loc tab-sanabi-debug-mode}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="Debug mode for Harmony. If on, a dump of IL logs will be generated and added to your desktop when the game is launched."
+                   Text="{loc:Loc tab-sanabi-debug-mode-desc}"
                    Margin="8"/>
 
         <CheckBox VerticalAlignment="Center"
                   Margin="4"
                   IsChecked="{Binding WaitForDebugger}"
-                  Content="Wait for debugger to attach before starting game"/>
+                  Content="{loc:Loc tab-sanabi-wait-for-debugger}"/>
         <TextBlock VerticalAlignment="Center"
                    TextWrapping="Wrap"
-                   Text="After launching the game process, should the game wait for a debugger to attach before doing anything? Only use if you know what you're doing."
+                   Text="{loc:Loc tab-sanabi-wait-for-debugger-desc}"
                    Margin="8"/>
 
-        <Button Content="Open Launcher Data Directory"
+        <Button Content="{loc:Loc tab-sanabi-open-data-directory}"
                 HorizontalAlignment="Center"
                 Command="{Binding OpenLauncherDataDirectory}"
                 Margin="0,10,0,5"/>

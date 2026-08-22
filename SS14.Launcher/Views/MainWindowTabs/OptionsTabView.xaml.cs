@@ -43,7 +43,7 @@ public partial class OptionsTabView : UserControl
         var locMgr = Locator.Current.GetService<LocalizationManager>()!;
 
         await ClearServerContentButton.DisplayDoneMessage(
-            "The launcher will restart now.", duration: 1000);
+            locMgr.GetString("tab-options-restart-message"), duration: 1000);
 
         Process.Start(Environment.ProcessPath!, Environment.GetCommandLineArgs());
         Environment.Exit(-1);

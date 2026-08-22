@@ -22,7 +22,7 @@
                      MinWidth="300" />
 
         <Panel DockPanel.Dock="Bottom">
-          <Button Content="Ok" IsVisible="{Binding IsErrored}" HorizontalAlignment="Center"
+          <Button Content="{loc:Loc connecting-ok}" IsVisible="{Binding IsErrored}" HorizontalAlignment="Center"
                   Command="{Binding ErrorDismissed}" MinWidth="75" />
 
           <DockPanel LastChildFill="False">

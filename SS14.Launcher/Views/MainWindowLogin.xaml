@@ -31,7 +31,7 @@
               Command="{Binding OpenLogDirectory}"
               Margin="4"/>
 
-      <Button Content="Proceed logged-out and query hub"
+      <Button Content="{loc:Loc main-window-login-proceed-logged-out}"
               DockPanel.Dock="Left"
               HorizontalAlignment="Left"
               Command="{Binding JustHideLoginMenu}"

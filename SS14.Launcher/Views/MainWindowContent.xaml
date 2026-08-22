@@ -139,11 +139,11 @@
                    Text="{loc:Loc main-window-out-of-date}"/>
         <TextBlock Margin="0, 10"
                    TextAlignment="Center"
-                   Text="A new version of the launcher exists and this message is only here because it's probably worth downloading! No, i don't know nor care enough to know how to make this overlay window not touch the borders of the screen. You may either download the new version at the given link or dismiss this warning."
+                   Text="{loc:Loc main-window-out-of-date-warning-desc}"
                    TextWrapping="Wrap"/>
         <DockPanel LastChildFill="False">
           <Button DockPanel.Dock="Right"
-                  Content="Fuck off"
+                  Content="{loc:Loc main-window-out-of-date-dismiss}"
                   Command="{Binding ExitPressed}"/>
           <Button DockPanel.Dock="Left"
                   Content="{loc:Loc main-window-out-of-date-download-manual}"

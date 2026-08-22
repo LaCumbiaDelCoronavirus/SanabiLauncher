@@ -51,7 +51,7 @@
       <Button DockPanel.Dock="Right"
               Name="DoneButton"
               Click="Done"
-              Content="Save"
+              Content="{loc:Loc hub-settings-button-save}"
               Classes="OpenLeft"/>
       <Button DockPanel.Dock="Right"
               Click="Cancel"
@@ -78,7 +78,7 @@
         </Path>
       </Button>
       <Button DockPanel.Dock="Left"
-              Content="?"
+              Content="{loc:Loc hub-settings-button-help}"
               Classes="InfoButton OpenLeft"
               ToolTip.ShowDelay="0">
         <ToolTip.Tip>
@@ -113,7 +113,7 @@
         <CheckBox DockPanel.Dock="Right"
                   Margin="4"
                   IsChecked="{Binding EnableStockHub}"
-                  Content="Enable default hub(s)"/>
+                  Content="{loc:Loc hub-settings-checkbox-enable-default}"/>
         <TextBlock DockPanel.Dock="Left"
                    Text="{loc:Loc hub-settings-heading-custom}"
                    Classes="NanoHeadingSmall"/>
@@ -170,7 +170,7 @@
                 </Button>
                 <TextBox Text="{Binding Address}"
                          PropertyChanged="HubTextChanged"
-                         Watermark="https://example.com/hub/"
+                         Watermark="{loc:Loc hub-settings-address-example}"
                          IsEnabled="{Binding IsNotDefault}"/>
               </DockPanel>
             </DataTemplate>

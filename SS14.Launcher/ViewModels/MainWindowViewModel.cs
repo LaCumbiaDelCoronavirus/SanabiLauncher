@@ -137,7 +137,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
     private async void SCRISK_DoStartingInitialisation()
     {
         _didStartingInit = true;
-        BusyTask = "Doing endpoint initialisation";
+        BusyTask = _loc.GetString("main-window-busy-endpoint-init");
 
         var launcherInfo = Locator.Current.GetRequiredService<LauncherInfoManager>();
         var overrideAssets = Locator.Current.GetRequiredService<OverrideAssetsManager>();

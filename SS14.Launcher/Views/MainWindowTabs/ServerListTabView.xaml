@@ -74,13 +74,12 @@
           <TextBlock HorizontalAlignment="Stretch"
                      VerticalAlignment="Stretch"
                      Classes="NanoHeadingMedium"
-                     Text="You have no hub APIs set!"/>
+                     Text="{loc:Loc tab-servers-no-hubs-title}"/>
           <TextBlock Margin="0, 10"
                      TextAlignment="Center"
                      MaxWidth="450"
                      TextWrapping="Wrap"
-                     Text="You have no hub APIs specified in your settings to use, or none of them work. This means no servers will show up here. This can be changed in your settings.
-                     Also this UI looks pretty terrible so please remind me to change it."/>
+                     Text="{loc:Loc tab-servers-no-hubs-desc}"/>
         </StackPanel>
       </ContentControl>
 

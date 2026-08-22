@@ -7,6 +7,9 @@ account-drop-down-log-out-of = Log out of { $name }
 account-drop-down-switch-account = Switch account:
 account-drop-down-select-account = Select account:
 account-drop-down-add-account = Add account
+account-drop-down-switch-no-account = Switch to no account
+account-drop-down-refresh-tokens = Refresh all account tokens
+account-drop-down-busy-refreshing-tokens = Refreshing all tokens...
 
 ## Localization for the "add favorite server" dialog window
 
@@ -16,12 +19,16 @@ add-favorite-window-label-name = Name:
 add-favorite-window-label-address = Address:
 # 'Example' name shown as a watermark in the name input box
 add-favorite-window-example-name = Honk Station
+add-favorite-window-button-add = Add
+# 'Example' address shown as a watermark in the address input box
+add-favorite-window-example-address = ss14://example.com
 
 ## Strings for the "connecting" menu that appears when connecting to a server.
 
 connecting-title-connecting = Connecting…
 connecting-title-content-bundle = Loading…
 connecting-cancel = Cancel
+connecting-ok = Ok
 connecting-status-none = Starting connection…
 connecting-status-update-error =
     There was an error while downloading server content. If this persists try some of the following:
@@ -66,11 +73,14 @@ direct-connect-title = Direct Connect
 direct-connect-text = Enter server address to connect:
 direct-connect-connect = Connect
 direct-connect-address-invalid = Address is invalid
+# 'Example' address shown as a watermark in the address input box
+direct-connect-address-example = ss14://example.com:1212
 
 ## Strings for the "hub settings" dialog window.
 
 hub-settings-title = Hub Settings
 hub-settings-button-done = Done
+hub-settings-button-save = Save
 hub-settings-button-cancel = Cancel
 hub-settings-button-reset = Reset
 hub-settings-button-reset-tooltip = Reset to default settings
@@ -83,6 +93,10 @@ hub-settings-heading-default = Default
 hub-settings-heading-custom = Custom
 hub-settings-warning-invalid = Invalid hub (don't forget http(s)://)
 hub-settings-warning-duplicate = Duplicate hubs
+hub-settings-button-help = ?
+hub-settings-checkbox-enable-default = Enable default hub(s)
+# 'Example' address shown as a watermark in the custom hub address input box
+hub-settings-address-example = https://example.com/hub/
 
 ## Strings for the login screen
 
@@ -143,6 +157,42 @@ login-login-button-register = Don't have an account? Register!
 login-login-busy-logging-in = Logging in…
 login-login-error-title = Unable to log in
 
+## Strings for the "register" view on login
+
+login-register-title = Register
+login-register-username-watermark = Username
+login-register-email-watermark = Email Address
+login-register-password-watermark = Password
+login-register-confirm-password-watermark = Confirm Password
+login-register-age-checkbox = I am 13 years of age or older
+login-register-button-submit = Register
+login-register-button-switch-to-login = Log into an existing account instead
+login-register-error-username-empty = Username is empty
+login-register-error-username-too-long = Username is too long
+login-register-error-username-too-short = Username is too short
+login-register-error-username-invalid-char = Username contains an invalid character
+login-register-error-unknown = ???
+login-register-error-email-empty = Email is empty
+login-register-error-email-invalid = Email is invalid
+login-register-error-password-empty = Password is empty
+login-register-error-password-mismatch = Confirm password does not match
+login-register-error-age = You must be 13 or older
+login-register-busy-registering = Registering account...
+login-register-error-title = Unable to register
+login-register-busy-logging-in = Logging in...
+
+## Strings for the "resend confirmation email" view on login
+
+login-resend-title = Resend email confirmation
+login-resend-message = If you've managed to... misplace your original confirmation email, you can send another one here by entering your email address.
+login-resend-email-watermark = Your email address
+login-resend-button-submit = Submit
+login-resend-button-back = Back to login
+login-resend-busy = Resending email...
+login-resend-success-title = Confirmation email sent
+login-resend-success-message = A confirmation email has been sent to your email address.
+login-resend-error-title = Error
+
 ## Strings for the "register confirmation" view on login
 
 login-confirmation-confirmation-title = Register confirmation
@@ -165,6 +215,8 @@ main-window-out-of-date-desc-steam =
     Please allow Steam to update the game.
 main-window-out-of-date-exit = Exit
 main-window-out-of-date-download-manual = Download (manual)
+main-window-out-of-date-warning-desc = A new version of the launcher exists and this message is only here because it's probably worth downloading! No, i don't know nor care enough to know how to make this overlay window not touch the borders of the screen. You may either download the new version at the given link or dismiss this warning.
+main-window-out-of-date-dismiss = Fuck off
 main-window-early-access-title = Heads up!
 main-window-early-access-desc = Space Station 14 is still very much in alpha. We hope you like what you see, and maybe even stick around, but make sure to keep your expectations modest for the time being.
 main-window-early-access-accept = Got it!
@@ -188,6 +240,8 @@ main-window-drag-drop-prompt = Drop to run game
 main-window-busy-checking-update = Checking for launcher update…
 main-window-busy-checking-login-status = Refreshing login status…
 main-window-busy-checking-account-status = Checking account status
+main-window-busy-endpoint-init = Doing endpoint initialisation
+main-window-login-proceed-logged-out = Proceed logged-out and query hub
 main-window-error-connecting-auth-server = Error connecting to authentication server
 main-window-error-unknown = Unknown error occurred
 
@@ -253,6 +307,10 @@ tab-servers-list-status-partial-error = Failed to fetch some of the server lists
 tab-servers-list-status-updating-master = Fetching master server list…
 tab-servers-list-status-none-filtered = No servers match your search or filter settings.
 tab-servers-list-status-none = There are no public servers. Ensure your hub configuration is correct.
+tab-servers-no-hubs-title = You have no hub APIs set!
+tab-servers-no-hubs-desc =
+    You have no hub APIs specified in your settings to use, or none of them work. This means no servers will show up here. This can be changed in your settings.
+    Also this UI looks pretty terrible so please remind me to change it.
 
 ## Strings for the server filters menu
 
@@ -310,6 +368,7 @@ server-entry-description-fetching = Fetching server status…
 server-entry-description-error = Error while fetching server description
 server-entry-description-none = No server description provided
 server-entry-status-lobby = Lobby
+server-entry-dns-error = DNS-ERR
 server-fetched-from-hub = Fetched from: { $hub }
 server-entry-raise = Raise to top
 
@@ -333,6 +392,8 @@ tab-home-direct-connect = Direct connect to server
 tab-home-run-content-bundle = Run content bundle/replay
 tab-home-go-to-servers-tab = Go to the servers tab
 tab-home-favorites-guide = Mark servers as favorite for easy access here
+tab-home-file-picker-title = Select replay or content bundle file
+tab-home-file-picker-filter-replay-or-bundle = Replay or content bundle files
 
 ## Strings for the "news" tab
 

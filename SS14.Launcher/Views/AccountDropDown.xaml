@@ -26,7 +26,7 @@
           <Button Content="{Binding LogoutText}"
                   Command="{Binding LogoutPressed}"
                   Margin="4"/>
-          <Button Content="Switch to no account"
+          <Button Content="{loc:Loc account-drop-down-switch-no-account}"
                   Command="{Binding UseNoAccountPressed}"
                   Margin="4"/>
           <Separator Classes="horizontal"
@@ -36,7 +36,7 @@
                 IsVisible="{Binding EnableMultiAccounts}"
                 Command="{Binding AddAccountPressed}"
                 Margin="4"/>
-        <Button Content="Refresh all account tokens"
+        <Button Content="{loc:Loc account-drop-down-refresh-tokens}"
                 Command="{Binding RefreshAllTokensPressed}"
                 Margin="4"/>
 

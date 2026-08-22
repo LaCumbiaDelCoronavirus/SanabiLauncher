@@ -5,6 +5,7 @@ using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using Robust.Shared.AuthLib;
 using SS14.Launcher.Api;
+using SS14.Launcher.Localization;
 using SS14.Launcher.Models.Data;
 using SS14.Launcher.Models.Logins;
 
@@ -15,6 +16,7 @@ public class RegisterViewModel : BaseLoginViewModel
     private readonly DataManager _cfg;
     private readonly AuthApi _authApi;
     private readonly LoginManager _loginMgr;
+    private readonly LocalizationManager _loc = LocalizationManager.Instance;
 
     [Reactive] public string EditingUsername { get; set; } = "";
     [Reactive] public string EditingPassword { get; set; } = "";
@@ -49,42 +51,42 @@ public class RegisterViewModel : BaseLoginViewModel
         {
             InvalidReason = reason switch
             {
-                UsernameHelpers.UsernameInvalidReason.Empty => "Username is empty",
-                UsernameHelpers.UsernameInvalidReason.TooLong => "Username is too long",
-                UsernameHelpers.UsernameInvalidReason.TooShort => "Username is too short",
-                UsernameHelpers.UsernameInvalidReason.InvalidCharacter => "Username contains an invalid character",
-                _ => "???"
+                UsernameHelpers.UsernameInvalidReason.Empty => _loc.GetString("login-register-error-username-empty"),
+                UsernameHelpers.UsernameInvalidReason.TooLong => _loc.GetString("login-register-error-username-too-long"),
+                UsernameHelpers.UsernameInvalidReason.TooShort => _loc.GetString("login-register-error-username-too-short"),
+                UsernameHelpers.UsernameInvalidReason.InvalidCharacter => _loc.GetString("login-register-error-username-invalid-char"),
+                _ => _loc.GetString("login-register-error-unknown")
             };
             return;
         }
 
         if (string.IsNullOrEmpty(email))
         {
-            InvalidReason = "Email is empty";
+            InvalidReason = _loc.GetString("login-register-error-email-empty");
             return;
         }
 
         if (!MailAddress.TryCreate(email, out _))
         {
-            InvalidReason = "Email is invalid";
+            InvalidReason = _loc.GetString("login-register-error-email-invalid");
             return;
         }
 
         if (string.IsNullOrEmpty(pass))
         {
-            InvalidReason = "Password is empty";
+            InvalidReason = _loc.GetString("login-register-error-password-empty");
             return;
         }
 
         if (pass != passConfirm)
         {
-            InvalidReason = "Confirm password does not match";
+            InvalidReason = _loc.GetString("login-register-error-password-mismatch");
             return;
         }
 
         if (!is13OrOlder)
         {
-            InvalidReason = "You must be 13 or older";
+            InvalidReason = _loc.GetString("login-register-error-age");
             return;
         }
 
@@ -99,7 +101,7 @@ public class RegisterViewModel : BaseLoginViewModel
             return;
         }
 
-        BusyText = "Registering account...";
+        BusyText = _loc.GetString("login-register-busy-registering");
         Busy = true;
         try
         {
@@ -107,14 +109,14 @@ public class RegisterViewModel : BaseLoginViewModel
             var result = await _authApi.RegisterAsync(EditingUsername, EditingEmail, EditingPassword, authInfo);
             if (!result.IsSuccess)
             {
-                OverlayControl = new AuthErrorsOverlayViewModel(this, "Unable to register", result.Errors);
+                OverlayControl = new AuthErrorsOverlayViewModel(this, _loc.GetString("login-register-error-title"), result.Errors);
                 return;
             }
 
             var status = result.Status;
             if (status == RegisterResponseStatus.Registered)
             {
-                BusyText = "Logging in...";
+                BusyText = _loc.GetString("login-register-busy-logging-in");
                 // No confirmation needed, log in immediately.
                 var request = new AuthApi.AuthenticateRequest(EditingUsername, EditingPassword, authInfo);
                 var resp = await _authApi.AuthenticateAsync(request);

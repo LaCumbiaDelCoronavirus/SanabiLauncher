@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vml="clr-namespace:SS14.Launcher.ViewModels.Login;assembly=SS14.Launcher"
+             xmlns:loc="clr-namespace:SS14.Launcher.Localization"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SS14.Launcher.Views.Login.RegisterView"
              Name="Register">
@@ -11,30 +12,30 @@
   </Design.DataContext>
 
   <DockPanel LastChildFill="False">
-    <TextBlock HorizontalAlignment="Center" DockPanel.Dock="Top" Classes="NanoHeadingMedium" Text="Register" />
+    <TextBlock HorizontalAlignment="Center" DockPanel.Dock="Top" Classes="NanoHeadingMedium" Text="{loc:Loc login-register-title}" />
 
-    <TextBox DockPanel.Dock="Top" Name="NameBox" MaxWidth="300" Margin="0, 10, 0, 0" Watermark="Username"
+    <TextBox DockPanel.Dock="Top" Name="NameBox" MaxWidth="300" Margin="0, 10, 0, 0" Watermark="{loc:Loc login-register-username-watermark}"
              Text="{Binding EditingUsername, Mode=TwoWay}" />
 
-    <TextBox DockPanel.Dock="Top" Name="EmailBox" MaxWidth="300" Margin="0, 4, 0, 0" Watermark="Email Address"
+    <TextBox DockPanel.Dock="Top" Name="EmailBox" MaxWidth="300" Margin="0, 4, 0, 0" Watermark="{loc:Loc login-register-email-watermark}"
              Text="{Binding EditingEmail, Mode=TwoWay}" />
 
-    <TextBox DockPanel.Dock="Top" Name="PasswordBox" MaxWidth="300" Margin="0, 20, 0, 0" Watermark="Password"
+    <TextBox DockPanel.Dock="Top" Name="PasswordBox" MaxWidth="300" Margin="0, 20, 0, 0" Watermark="{loc:Loc login-register-password-watermark}"
              Text="{Binding EditingPassword, Mode=TwoWay}" PasswordChar="•" />
 
     <TextBox DockPanel.Dock="Top" Name="PasswordConfirmBox" MaxWidth="300" Margin="0, 4, 0, 0"
-             Watermark="Confirm Password" PasswordChar="•"
+             Watermark="{loc:Loc login-register-confirm-password-watermark}" PasswordChar="•"
              Text="{Binding EditingPasswordConfirm, Mode=TwoWay}" />
 
-    <CheckBox DockPanel.Dock="Top" Content="I am 13 years of age or older"
+    <CheckBox DockPanel.Dock="Top" Content="{loc:Loc login-register-age-checkbox}"
               IsChecked="{Binding Is13OrOlder, Mode=TwoWay}" MaxWidth="300" HorizontalAlignment="Center" />
 
     <TextBlock DockPanel.Dock="Top" VerticalAlignment="Center" HorizontalAlignment="Center" Classes="SubText"
                Text="{Binding InvalidReason}" />
     <Button DockPanel.Dock="Top" IsEnabled="{Binding IsInputValid}" HorizontalAlignment="Center"
-            Content="Register" Command="{Binding OnRegisterInButtonPressed}" />
+            Content="{loc:Loc login-register-button-submit}" Command="{Binding OnRegisterInButtonPressed}" />
 
     <Button DockPanel.Dock="Bottom" Margin="0 4" HorizontalAlignment="Center"
-            Content="Log into an existing account instead" Command="{Binding ParentVM.SwitchToLogin}" />
+            Content="{loc:Loc login-register-button-switch-to-login}" Command="{Binding ParentVM.SwitchToLogin}" />
   </DockPanel>
 </UserControl>

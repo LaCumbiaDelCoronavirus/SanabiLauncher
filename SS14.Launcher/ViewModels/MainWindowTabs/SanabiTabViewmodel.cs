@@ -1,4 +1,5 @@
 using Splat;
+using SS14.Launcher.Localization;
 using SS14.Launcher.Models.Data;
 using SS14.Launcher.Utility;
 using SS14.Common.Data.CVars;
@@ -68,7 +69,7 @@ public class SanabiTabViewModel : MainWindowTabViewModel
         });
     }
 
-    public override string Name => "Sanabi";
+    public override string Name => LocalizationManager.Instance.GetString("tab-sanabi-title");
 
     public bool PatchingEnabled
     {

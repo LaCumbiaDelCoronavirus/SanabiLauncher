@@ -4,6 +4,8 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using Serilog;
+using Splat;
+using SS14.Launcher.Localization;
 using SS14.Launcher.ViewModels;
 using SS14.Launcher.ViewModels.MainWindowTabs;
 
@@ -46,13 +48,15 @@ public partial class HomePageView : UserControl
             return;
         }
 
+        var locMgr = Locator.Current.GetService<LocalizationManager>()!;
+
         var result = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Select replay or content bundle file",
+            Title = locMgr.GetString("tab-home-file-picker-title"),
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("Replay or content bundle files")
+                new FilePickerFileType(locMgr.GetString("tab-home-file-picker-filter-replay-or-bundle"))
                 {
                     Patterns = ["*.zip"],
                     MimeTypes = ["application/zip"],

@@ -133,7 +133,7 @@ public class AccountDropDownViewModel : ViewModelBase
     {
         IsDropDownOpen = false;
 
-        _mainVm.BusyTask = "Refreshing all tokens...";
+        _mainVm.BusyTask = _loc.GetString("account-drop-down-busy-refreshing-tokens");
         await _loginMgr.RefreshAllTokens();
         _mainVm.BusyTask = null;
     }

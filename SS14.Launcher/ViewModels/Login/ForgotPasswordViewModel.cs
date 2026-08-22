@@ -31,7 +31,7 @@ public sealed class ForgotPasswordViewModel : BaseLoginViewModel
         Busy = true;
         try
         {
-            BusyText = "Sending email...";
+            BusyText = _loc.GetString("login-forgot-busy-sending");
             var errors = await _authApi.ForgotPasswordAsync(EditingEmail, SanabiAuthManager.LazilyGetInfoFromUrl(EditingPrimaryAuthServer));
 
             _errored = errors != null;
