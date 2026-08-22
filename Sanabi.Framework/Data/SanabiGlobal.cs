@@ -24,7 +24,7 @@ public static class SanabiGlobal
     ]
   },
   "allowedVersions": [
-    "SANABI-220-7"
+    "ERROR"
   ],
   "overrideAssets": {},
   "changelog": [],
