@@ -141,6 +141,49 @@
                    TextAlignment="Center"
                    Text="{loc:Loc main-window-out-of-date-warning-desc}"
                    TextWrapping="Wrap"/>
+
+        <!-- Changelog -->
+        <Border IsVisible="{Binding HasChangelogEntries}"
+                Background="{DynamicResource ThemePopupBackgroundBrush}"
+                BorderBrush="{DynamicResource ThemeStripebackEdgeBrush}"
+                BorderThickness="1"
+                MaxWidth="450"
+                MaxHeight="220"
+                Margin="0, 0, 0, 10">
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto">
+            <StackPanel Orientation="Vertical"
+                        Margin="8">
+              <ItemsControl ItemsSource="{Binding ChangelogEntries}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:ChangelogEntryViewModel">
+                    <StackPanel Orientation="Vertical"
+                                Margin="0, 0, 0, 10">
+                      <Border BorderBrush="{DynamicResource ThemeStripebackEdgeBrush}"
+                              BorderThickness="0, 0, 0, 1"
+                              Margin="0, 0, 0, 4">
+                        <TextBlock Text="{Binding Version}"
+                                   Classes="NanoHeadingMedium"
+                                   FontSize="14"
+                                   Margin="0, 0, 0, 2"/>
+                      </Border>
+                      <TextBlock Text="{Binding Changes}"
+                                 TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <Image IsVisible="{Binding HasChangelogMedia}"
+                     Source="{Binding ChangelogMediaBitmap}"
+                     Stretch="Uniform"
+                     MaxWidth="420"
+                     HorizontalAlignment="Center"
+                     Margin="0, 4, 0, 0"/>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+
         <DockPanel LastChildFill="False">
           <Button DockPanel.Dock="Right"
                   Content="{loc:Loc main-window-out-of-date-dismiss}"

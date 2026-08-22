@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Reactive.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using DynamicData;
 using ReactiveUI;
@@ -40,6 +42,11 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
 
     public DataManager Cfg => _cfg;
     [Reactive] public bool OutOfDate { get; private set; }
+
+    [Reactive] public IReadOnlyList<ChangelogEntryViewModel> ChangelogEntries { get; private set; } = [];
+    [Reactive] public Bitmap? ChangelogMediaBitmap { get; private set; }
+    public bool HasChangelogEntries => ChangelogEntries.Count > 0;
+    public bool HasChangelogMedia => ChangelogMediaBitmap != null;
 
     public HomePageViewModel HomeTab { get; }
     public ServerListTabViewModel ServersTab { get; }
@@ -79,6 +86,11 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         };
 
         SetLoginMenuShowing(_cfg.GetCVar(SanabiCVars.StartOnLoginMenu));
+
+        this.WhenAnyValue(x => x.ChangelogEntries)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(HasChangelogEntries)));
+        this.WhenAnyValue(x => x.ChangelogMediaBitmap)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(HasChangelogMedia)));
     }
 
     [Reactive] public bool FancyBackgroundEnabled { get; set; }
@@ -261,6 +273,89 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
 
         OutOfDate = Array.IndexOf(_infoManager.Model.AllowedVersions, ConfigConstants.CurrentLauncherVersion) == -1;
         Log.Debug("Launcher out of date? {Value}", OutOfDate);
+
+        if (OutOfDate)
+            LoadChangelog();
+    }
+
+    private async void LoadChangelog()
+    {
+        var model = _infoManager.Model;
+        if (model == null)
+            return;
+
+        try
+        {
+            ChangelogEntries = model.ChangelogEntries
+                .Select(e => new ChangelogEntryViewModel(e.Version, e.Changes))
+                .ToArray();
+        }
+        catch (Exception e)
+        {
+            Log.Warning(e, "Failed to load changelog data.");
+            ChangelogEntries = [];
+        }
+
+        await LoadChangelogMedia(model.SafeChangelogMediaUrl);
+    }
+
+    // Magic-number signatures for the raster formats we're willing to render.
+    // PNG is the primary/expected format; the others are supported opportunistically.
+    private static readonly (byte[] Signature, string Name)[] SupportedImageSignatures =
+    [
+        ([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], "PNG"),
+        ([0xFF, 0xD8, 0xFF], "JPEG"),
+        ([0x47, 0x49, 0x46, 0x38], "GIF"),
+        ([0x42, 0x4D], "BMP"),
+    ];
+
+    private static bool IsSupportedImage(ReadOnlySpan<byte> header)
+    {
+        foreach (var (signature, _) in SupportedImageSignatures)
+        {
+            if (header.Length >= signature.Length && header[..signature.Length].SequenceEqual(signature))
+                return true;
+        }
+
+        // WEBP: "RIFF" .... "WEBP"
+        if (header.Length >= 12 &&
+            header[..4].SequenceEqual("RIFF"u8) &&
+            header.Slice(8, 4).SequenceEqual("WEBP"u8))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task LoadChangelogMedia(string mediaUrl)
+    {
+        ChangelogMediaBitmap = null;
+
+        if (!Uri.TryCreate(mediaUrl, UriKind.Absolute, out var uri))
+            return;
+
+        try
+        {
+            var http = Locator.Current.GetRequiredService<HttpClient>();
+            await using var stream = await http.GetStreamAsync(uri);
+            using var memStream = new MemoryStream();
+            await stream.CopyToAsync(memStream);
+
+            if (!IsSupportedImage(memStream.GetBuffer().AsSpan(0, (int) memStream.Length)))
+            {
+                Log.Warning("Changelog media at {Url} is not a recognized image format, skipping.", mediaUrl);
+                return;
+            }
+
+            memStream.Position = 0;
+            ChangelogMediaBitmap = new Bitmap(memStream);
+        }
+        catch (Exception e)
+        {
+            Log.Warning(e, "Failed to load changelog media image from {Url}", mediaUrl);
+            ChangelogMediaBitmap = null;
+        }
     }
 
     public void ExitPressed()

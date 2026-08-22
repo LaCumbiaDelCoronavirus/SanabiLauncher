@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Sanabi.Framework.Data;
@@ -74,8 +76,42 @@ public sealed class LauncherInfoManager(HttpClient httpClient)
     }
 
     public sealed record LauncherInfoModel(
+        [property:JsonPropertyName("messages")]
         Dictionary<string, string[]> Messages,
+
+        [property:JsonPropertyName("allowedVersions")]
         string[] AllowedVersions,
-        Dictionary<string, string?> OverrideAssets
+
+        [property:JsonPropertyName("overrideAssets")]
+        Dictionary<string, string?> OverrideAssets,
+
+        [property:JsonPropertyName("changelog")]
+        ChangelogEntry[]? Changelog = null,
+
+        [property:JsonPropertyName("changelogMediaUrl")]
+        string ChangelogMediaUrl = ""
+    )
+    {
+        /// <summary>
+        ///     Changelog entries, guaranteed non-null and free of malformed entries even if the
+        ///     remote data omits or malforms the field.
+        /// </summary>
+        [JsonIgnore]
+        public ChangelogEntry[] ChangelogEntries =>
+            Changelog?.Where(e => !string.IsNullOrWhiteSpace(e?.Version) && e.Changes != null).ToArray() ?? [];
+
+        /// <summary>
+        ///     Optional media URL to show below the changelog. Guaranteed non-null (empty if unset/invalid).
+        /// </summary>
+        [JsonIgnore]
+        public string SafeChangelogMediaUrl => ChangelogMediaUrl ?? "";
+    }
+
+    public sealed record ChangelogEntry(
+        [property:JsonPropertyName("version")]
+        string Version,
+
+        [property:JsonPropertyName("changes")]
+        string Changes
     );
 }
