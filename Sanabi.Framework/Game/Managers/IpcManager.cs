@@ -37,7 +37,10 @@ public static class IpcManager
     /// <returns>The received text, or <c>null</c> if cancelled before a client connected.</returns>
     public static async Task<string?> RunStringPipeServer(string pipeName, CancellationToken cancel = default)
     {
-        var server = InitiateServer(pipeName, pipeDirection: PipeDirection.In);
+        // Allow a couple of overlapping instances: cancelling a listener's connection wait has
+        // real OS-level latency, so a rapid relaunch may briefly race a previous listener that
+        // hasn't finished tearing down yet.
+        var server = InitiateServer(pipeName, pipeDirection: PipeDirection.In, maxInstances: 4);
 
         try
         {
@@ -150,8 +153,8 @@ public static class IpcManager
     /// <summary>
     ///     Creates a <see cref="NamedPipeServerStream"/>.
     /// </summary>
-    private static NamedPipeServerStream InitiateServer(string pipeName, PipeDirection pipeDirection = PipeDirection.InOut)
-        => new(pipeName, pipeDirection, 1, PipeTransmissionMode.Byte);
+    private static NamedPipeServerStream InitiateServer(string pipeName, PipeDirection pipeDirection = PipeDirection.InOut, int maxInstances = 1)
+        => new(pipeName, pipeDirection, maxInstances, PipeTransmissionMode.Byte);
 
     /// <summary>
     ///     Creates a <see cref="NamedPipeClientStream"/>.

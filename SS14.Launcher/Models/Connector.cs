@@ -353,7 +353,15 @@ public partial class Connector : ReactiveObject
             // badly; otherwise there's nothing that could ever connect to the pipe. This runs even
             // if cancelled above, so a cancelled/killed launch never leaves the crash pipe server
             // dangling and blocking the next launch attempt.
-            await FinalizeCrashReport(waitForReport: clientProc != null && ClientExitedBadly);
+            //
+            // Deliberately offloaded via Task.Run, not just fire-and-forget: cancelling a pending
+            // pipe-connection wait calls CancellationTokenSource.Cancel(), whose registered-callback
+            // Dispose() runs *synchronously on the calling thread/context* and can block for a
+            // moment on the OS actually tearing down the pending I/O. That must never delay the UI
+            // from reflecting that the client has exited (e.g. on a normal, non-crashing quit, which
+            // hits this path every time) - a plain `_ = FinalizeCrashReport(...)` would still run
+            // that synchronous prefix inline before yielding.
+            _ = Task.Run(() => FinalizeCrashReport(waitForReport: clientProc != null && ClientExitedBadly));
         }
 
         Status = ConnectionStatus.ClientExited;
@@ -674,6 +682,9 @@ public partial class Connector : ReactiveObject
         Log.Debug("Launch command: {LaunchCommand}", commandBuilder.ToString());
 
         _ = IpcManager.RunStructPipeServer(IpcManager.SanabiIpcName, new SanabiConfig().Configure(_cfg));
+
+        // In case a previous launch's crash-report cleanup is still winding down in the background.
+        _crashCancelSource?.Cancel();
 
         _crashCancelSource = new CancellationTokenSource();
         _crashReportTask = IpcManager.RunStringPipeServer(IpcManager.SanabiCrashIpcName, _crashCancelSource.Token);
