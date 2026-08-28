@@ -40,6 +40,9 @@ public partial class Connector : ReactiveObject
 
     private ConnectionStatus _status = ConnectionStatus.None;
     private bool _clientExitedBadly;
+    private string? _crashReport;
+    private CancellationTokenSource? _crashCancelSource;
+    private Task<string?>? _crashReportTask;
     private readonly HttpClient _http;
 
     private TaskCompletionSource<PrivacyPolicyAcceptResult>? _acceptPrivacyPolicyTcs;
@@ -65,6 +68,16 @@ public partial class Connector : ReactiveObject
     {
         get => _clientExitedBadly;
         private set => this.RaiseAndSetIfChanged(ref _clientExitedBadly, value);
+    }
+
+    /// <summary>
+    ///     The crash report text received from the client process over IPC, if it crashed and
+    ///         managed to report it before exiting. Null if there was no crash report.
+    /// </summary>
+    public string? CrashReport
+    {
+        get => _crashReport;
+        private set => this.RaiseAndSetIfChanged(ref _crashReport, value);
     }
 
     public ServerPrivacyPolicyInfo? PrivacyPolicyInfo => _serverPrivacyPolicyInfo;
@@ -311,29 +324,71 @@ public partial class Connector : ReactiveObject
 
         var clientProc = await ConnectLaunchClient(launchInfo, info, buildInfo, connectAddress, parsedAddr, contentBundle);
 
-        if (clientProc != null)
+        try
         {
-            // Wait 300ms, if the client exits with a bad error code before that it's probably fucked.
-            var waitClient = clientProc.WaitForExitAsync(cancel);
-            var waitDelay = Task.Delay(300, cancel);
-
-            await Task.WhenAny(waitDelay, waitClient);
-
-            if (!clientProc.HasExited)
+            if (clientProc != null)
             {
-                Status = ConnectionStatus.ClientRunning;
-                await waitClient;
-                return;
-            }
+                // Wait 300ms, if the client exits with a bad error code before that it's probably fucked.
+                var waitClient = clientProc.WaitForExitAsync(cancel);
+                var waitDelay = Task.Delay(300, cancel);
 
-            ClientExitedBadly = clientProc.ExitCode != 0;
+                await Task.WhenAny(waitDelay, waitClient);
+
+                if (!clientProc.HasExited)
+                {
+                    Status = ConnectionStatus.ClientRunning;
+                    await waitClient;
+                }
+
+                ClientExitedBadly = clientProc.ExitCode != 0;
+            }
+            else
+            {
+                ClientExitedBadly = true;
+            }
         }
-        else
+        finally
         {
-            ClientExitedBadly = true;
+            // A crash report is only ever worth waiting on if a client process actually exited
+            // badly; otherwise there's nothing that could ever connect to the pipe. This runs even
+            // if cancelled above, so a cancelled/killed launch never leaves the crash pipe server
+            // dangling and blocking the next launch attempt.
+            await FinalizeCrashReport(waitForReport: clientProc != null && ClientExitedBadly);
         }
 
         Status = ConnectionStatus.ClientExited;
+    }
+
+    /// <summary>
+    ///     Stops listening for a crash report from the client process. If one may be in flight,
+    ///         gives it a short grace period to arrive before giving up, so this can never hang
+    ///         forever waiting for a client that will never connect (e.g. a native crash, or one
+    ///         that exited badly for a reason unrelated to the loader's own exception handling).
+    /// </summary>
+    private async Task FinalizeCrashReport(bool waitForReport)
+    {
+        if (_crashCancelSource == null || _crashReportTask == null)
+            return;
+
+        if (waitForReport)
+            await Task.WhenAny(_crashReportTask, Task.Delay(TimeSpan.FromSeconds(2)));
+
+        _crashCancelSource.Cancel();
+
+        try
+        {
+            CrashReport = await _crashReportTask;
+        }
+        catch (Exception e)
+        {
+            Log.Warning(e, "Failed waiting for client crash report");
+        }
+        finally
+        {
+            _crashCancelSource.Dispose();
+            _crashCancelSource = null;
+            _crashReportTask = null;
+        }
     }
 
     private async Task<Process?> ConnectLaunchClient(ContentLaunchInfo launchInfo,
@@ -619,6 +674,9 @@ public partial class Connector : ReactiveObject
         Log.Debug("Launch command: {LaunchCommand}", commandBuilder.ToString());
 
         _ = IpcManager.RunStructPipeServer(IpcManager.SanabiIpcName, new SanabiConfig().Configure(_cfg));
+
+        _crashCancelSource = new CancellationTokenSource();
+        _crashReportTask = IpcManager.RunStringPipeServer(IpcManager.SanabiCrashIpcName, _crashCancelSource.Token);
 
         var process = Process.Start(startInfo);
 

@@ -68,48 +68,67 @@ internal class Program
         if (!TryGetLoader(clientAssembly, out var loader))
             return false;
 
-        AssemblyManager.Assemblies["Robust.Client"] = clientAssembly;
-        AssemblyManager.Assemblies["Robust.Shared"] = sharedEngineAssembly;
-
-        // wait until properly connected
-
-        SanabiConfig.ProcessConfig = IpcManager.RunStructPipeClient<SanabiConfig>(IpcManager.SanabiIpcName);
-
-        static void ContentRunLevelAct()
+        string? crashStage = null;
+        void ContentRunLevelAct()
         {
             if (!SanabiConfig.ProcessConfig.PatchRunLevel.HasFlag(PatchRunLevel.Content))
                 return;
 
+            crashStage = "content runlevel";
             PatchEntryAttributeManager.ProcessRunLevel(PatchRunLevel.Content);
+            crashStage = null;
         }
 
-        if (SanabiConfig.ProcessConfig.WaitForDebugger)
+        try
         {
-            Console.WriteLine("Waiting for debugger to attach...");
-            while (!Debugger.IsAttached)
-                Thread.Sleep(100);
+            AssemblyManager.Assemblies["Robust.Client"] = clientAssembly;
+            AssemblyManager.Assemblies["Robust.Shared"] = sharedEngineAssembly;
 
-            Console.WriteLine("Debugger attached!");
+            // wait until properly connected
+
+            crashStage = "sanabiconfig struct receival";
+            SanabiConfig.ProcessConfig = IpcManager.RunStructPipeClient<SanabiConfig>(IpcManager.SanabiIpcName);
+            crashStage = null;
+
+            if (SanabiConfig.ProcessConfig.WaitForDebugger)
+            {
+                crashStage = "debug attach";
+                Console.WriteLine("Waiting for debugger to attach...");
+                while (!Debugger.IsAttached)
+                    Thread.Sleep(100);
+
+                Console.WriteLine("Debugger attached!");
+            }
+
+            if (SanabiConfig.ProcessConfig.PatchRunLevel.HasFlag(PatchRunLevel.Engine) &&
+                AssemblyManager.TryGetAssembly("Robust.Client", out _))
+            {
+                crashStage = "harmony and engine-patch initialisation";
+                HarmonyManager.Initialise();
+
+                var modloader = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.ModLoader");
+                PatchHelpers.PatchPrefixFalse(modloader.GetMethod("SetUseLoadContext")!);
+
+                // Hide assemblies
+                AssemblyHidingManager.HideBasicAssemblies();
+                AssemblyHidingManager.PatchDetectionVectors();
+
+                crashStage = "engine runlevel";
+                PatchEntryAttributeManager.ProcessRunLevel(PatchRunLevel.Engine);
+                crashStage = null;
+                AssemblyManager.OnAssembliesFulfilled += ContentRunLevelAct;
+
+                // Idk why this is after everything and it really shouldnt be but shit breaks if its not after everything. HEEELP
+                AssemblyManager.QueryAssemblies();
+                AssemblyManager.Subscribe();
+            }
+
+            crashStage = null;
         }
-
-        if (SanabiConfig.ProcessConfig.PatchRunLevel.HasFlag(PatchRunLevel.Engine) &&
-            AssemblyManager.TryGetAssembly("Robust.Client", out _))
+        catch (Exception ex)
         {
-            HarmonyManager.Initialise();
-
-            var modloader = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.ModLoader");
-            PatchHelpers.PatchPrefixFalse(modloader.GetMethod("SetUseLoadContext")!);
-
-            // Hide assemblies
-            AssemblyHidingManager.HideBasicAssemblies();
-            AssemblyHidingManager.PatchDetectionVectors();
-
-            PatchEntryAttributeManager.ProcessRunLevel(PatchRunLevel.Engine);
-            AssemblyManager.OnAssembliesFulfilled += ContentRunLevelAct;
-
-            // Idk why this is after everything and it really shouldnt be but shit breaks if its not after everything. HEEELP
-            AssemblyManager.QueryAssemblies();
-            AssemblyManager.Subscribe();
+            ReportCrash(ex, stage: crashStage);
+            throw;
         }
 
         // Console.WriteLine("lsasm dump:");
@@ -159,6 +178,11 @@ internal class Program
         {
             loader.Main(args);
         }
+        catch (Exception ex)
+        {
+            ReportCrash(ex, stage: crashStage);
+            throw;
+        }
         finally
         {
             AssemblyManager.Unsubscribe();
@@ -168,6 +192,24 @@ internal class Program
             overlayApi?.Dispose();
         }
         return true;
+    }
+
+    /// <summary>
+    ///     Best-effort delivery of an unhandled game exception to the launcher, if it is open
+    ///         and listening. Never throws; a failure here must not mask the original crash.
+    /// </summary>
+    private static void ReportCrash(Exception ex, string? stage = null)
+    {
+        try
+        {
+            var report = $"Crash at {DateTime.Now:yyyy-MM-dd HH:mm:ss}{(stage is { } ? $" during stage '{stage}'" : "")}\n\n{ex}";
+            Console.WriteLine(report);
+            IpcManager.RunStringPipeClient(IpcManager.SanabiCrashIpcName, report);
+        }
+        catch (Exception reportEx)
+        {
+            Console.WriteLine($"Failed to report crash to launcher: {reportEx}");
+        }
     }
 
     private static bool TryGetLoader(Assembly clientAssembly, [NotNullWhen(true)] out ILoaderEntryPoint? loader)

@@ -10,6 +10,16 @@ add-favorite-window-button-add = Добавить
 add-favorite-window-example-address = ss14://example.com
 # Strings for the "connecting" menu that appears when connecting to a server.
 connecting-ok = Ок
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-window-title = Игра вылетела
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-heading = Игра вылетела
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-description = Что-то пошло не так, и игру пришлось закрыть. Приведённые ниже подробности могут помочь разобраться, что случилось — скопируйте их, если обращаетесь за помощью.
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-button-copy = Скопировать
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-button-close = Закрыть
 # Strings for the "direct connect" dialog window.
 # 'Example' address shown as a watermark in the address input box
 direct-connect-address-example = ss14://example.com:1212

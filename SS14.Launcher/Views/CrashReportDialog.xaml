@@ -1,0 +1,46 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:loc="clr-namespace:SS14.Launcher.Localization"
+        mc:Ignorable="d"
+        d:DesignWidth="700"
+        d:DesignHeight="500"
+        MinWidth="500"
+        MinHeight="300"
+        Width="700"
+        Height="500"
+        x:Class="SS14.Launcher.Views.CrashReportDialog"
+        Icon="{DynamicResource WindowIcon}"
+        Title="{loc:Loc crash-report-window-title}"
+        Padding="4"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel LastChildFill="True">
+    <TextBlock DockPanel.Dock="Top"
+               Classes="NanoHeadingMedium"
+               Text="{loc:Loc crash-report-heading}"
+               Margin="0 0 0 4"/>
+    <TextBlock DockPanel.Dock="Top"
+               Text="{loc:Loc crash-report-description}"
+               TextWrapping="Wrap"
+               Margin="0 0 0 8"/>
+    <DockPanel DockPanel.Dock="Bottom"
+               Margin="0 8 0 0"
+               LastChildFill="False">
+      <Button DockPanel.Dock="Right"
+              Name="CloseButton"
+              Click="Close_OnClick"
+              Content="{loc:Loc crash-report-button-close}"/>
+      <Button DockPanel.Dock="Left"
+              Name="CopyButton"
+              Click="Copy_OnClick"
+              Content="{loc:Loc crash-report-button-copy}"/>
+    </DockPanel>
+    <TextBox Name="ReportText"
+             IsReadOnly="True"
+             AcceptsReturn="True"
+             TextWrapping="NoWrap"
+             FontFamily="Consolas,Cascadia Code,monospace"
+             VerticalContentAlignment="Top"/>
+  </DockPanel>
+</Window>

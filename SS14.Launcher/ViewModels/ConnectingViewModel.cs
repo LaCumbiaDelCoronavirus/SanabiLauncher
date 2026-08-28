@@ -1,12 +1,15 @@
 using System;
 using System.Reactive.Linq;
 using System.Threading;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using ReactiveUI;
 using Splat;
 using SS14.Launcher.Localization;
 using SS14.Launcher.Models;
 using SS14.Launcher.Utility;
+using SS14.Launcher.Views;
 
 namespace SS14.Launcher.ViewModels;
 
@@ -107,6 +110,23 @@ public class ConnectingViewModel : ViewModelBase
                 this.RaisePropertyChanged(nameof(StatusText));
                 this.RaisePropertyChanged(nameof(IsErrored));
             });
+
+        this.WhenAnyValue(x => x._connector.CrashReport)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(report =>
+            {
+                if (report != null)
+                    ShowCrashDialog(report);
+            });
+    }
+
+    private static void ShowCrashDialog(string report)
+    {
+        var dialog = new CrashReportDialog(report);
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
+            dialog.Show(mainWindow);
+        else
+            dialog.Show();
     }
 
     public float Progress

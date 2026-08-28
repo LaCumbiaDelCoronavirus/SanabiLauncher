@@ -10,6 +10,7 @@ namespace Sanabi.Framework.Game.Managers;
 public static class IpcManager
 {
     public const string SanabiIpcName = "sanabiss14launcheripc";
+    public const string SanabiCrashIpcName = "sanabiss14launchercrashipc";
 
     /// <summary>
     ///     Connects and starts running the server pipe. This directly moves an unmanaged structs
@@ -25,6 +26,52 @@ public static class IpcManager
 
         server.Disconnect();
         server.Dispose();
+    }
+
+    /// <summary>
+    ///     Connects and waits for a single client to connect and send a complete text payload,
+    ///         then disconnects. Intended for one-shot, best-effort notifications (e.g. crash
+    ///         reports) where the client may never connect during the lifetime of this call;
+    ///         pass <paramref name="cancel"/> to give up waiting once it's no longer needed.
+    /// </summary>
+    /// <returns>The received text, or <c>null</c> if cancelled before a client connected.</returns>
+    public static async Task<string?> RunStringPipeServer(string pipeName, CancellationToken cancel = default)
+    {
+        var server = InitiateServer(pipeName, pipeDirection: PipeDirection.In);
+
+        try
+        {
+            await server.WaitForConnectionAsync(cancel);
+        }
+        catch (OperationCanceledException)
+        {
+            server.Dispose();
+            return null;
+        }
+
+        var reader = new StreamReader(server);
+        var message = await reader.ReadToEndAsync(cancel);
+
+        server.Disconnect();
+        server.Dispose();
+        return message;
+    }
+
+    /// <summary>
+    ///     Connects to the server pipe and sends a single text payload, then disconnects. This is
+    ///         synchronous and gives up after <paramref name="timeoutMs"/> milliseconds if no
+    ///         server is listening, so it is safe to call even if the other end isn't running.
+    /// </summary>
+    public static void RunStringPipeClient(string pipeName, string message, int timeoutMs = 3000)
+    {
+        var client = InitiateClient(pipeName, pipeDirection: PipeDirection.Out);
+        client.Connect(timeoutMs);
+
+        var writer = new StreamWriter(client);
+        writer.Write(message);
+        writer.Flush();
+
+        client.Dispose();
     }
 
     /// <summary>

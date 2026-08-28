@@ -9,6 +9,14 @@ add-favorite-window-example-address = ss14://example.com
 
 connecting-ok = Ok
 
+## Strings for the "crash report" dialog window, shown when the game client crashes
+
+crash-report-window-title = Game Crashed
+crash-report-heading = The game has crashed
+crash-report-description = Something went wrong and the game had to close. The details below may help figure out what happened - copy them if you're asking for help.
+crash-report-button-copy = Copy to Clipboard
+crash-report-button-close = Close
+
 # 'Example' address shown as a watermark in the address input box
 direct-connect-address-example = ss14://example.com:1212
 
