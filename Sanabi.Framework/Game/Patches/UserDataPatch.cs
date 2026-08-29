@@ -497,22 +497,21 @@ public static class UserDataPatch
 
             public override bool CanWrite => _canWrite;
             public override bool CanRead => _canRead;
-            public override bool CanSeek => _canRead;
+            public override bool CanSeek => true;
             public override long Length => _backer.Length;
 
             /// <summary>
-            ///     Number of bytes added to current position
-            ///         when it is accessed externally.
+            ///     This instance's own position into the shared backing stream.
+            ///         Multiple ProxyMemoryFileStreams can wrap the same MemoryFileNode's
+            ///         backer, each with an independent position, so _backer.Position is
+            ///         only ever a scratch value synced in immediately before use.
             /// </summary>
-            private long _offset = 0;
+            private long _position = 0;
 
             public override long Position
             {
-                get => _backer.Position;
-                set
-                {
-                    _backer.Position = value;
-                }
+                get => _position;
+                set => _position = value;
             }
 
             public override int Read(byte[] buffer, int offset, int count)
@@ -520,12 +519,9 @@ public static class UserDataPatch
                 if (!CanRead)
                     throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
 
-                var oldPosition = _backer.Position;
-
-                _backer.Position += _offset;
+                _backer.Position = _position;
                 var bytes = _backer.Read(buffer, offset, count);
-
-                _backer.Position = oldPosition;
+                _position = _backer.Position;
 
                 return bytes;
             }
@@ -535,33 +531,22 @@ public static class UserDataPatch
                 if (!CanWrite)
                     throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
 
-                var oldPosition = _backer.Position;
-
-                _backer.Position += _offset;
+                _backer.Position = _position;
                 _backer.Write(buffer, offset, count);
-
-                _backer.Position = oldPosition;
+                _position = _backer.Position;
             }
 
             public override long Seek(long offset, SeekOrigin origin)
             {
-                if (!CanSeek)
-                    throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
-
-                switch (origin)
+                _position = origin switch
                 {
-                    case SeekOrigin.Begin:
-                        _offset = offset - _backer.Position;
-                        break;
-                    case SeekOrigin.Current:
-                        _offset = offset;
-                        break;
-                    case SeekOrigin.End:
-                        _offset = _backer.Length - offset;
-                        break;
-                }
+                    SeekOrigin.Begin => offset,
+                    SeekOrigin.Current => _position + offset,
+                    SeekOrigin.End => _backer.Length + offset,
+                    _ => throw new ArgumentOutOfRangeException(nameof(origin)),
+                };
 
-                return _backer.Position + _offset;
+                return _position;
             }
 
             public override void Flush() { }
