@@ -5,11 +5,15 @@ using HarmonyLib;
 using System.Reflection;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using Sanabi.Framework.Misc;
 
 namespace Sanabi.Framework.Game.Patches;
 
 public static class UserDataPatch
 {
+    /// <summary>
+    ///     Dir providers which should use the proxy vfs instead of original code.
+    /// </summary>
     private static readonly Dictionary<object, ProxyVfs> StealthedDirProviders = [];
 
     public static bool Enabled => SanabiConfig.ProcessConfig.RunUserDataPatch;
@@ -128,6 +132,7 @@ public static class UserDataPatch
     private static string GetFullPath(dynamic wdp, object resPath)
         => WdpGetFullPath.Invoke(wdp, (object[])[resPath]);
 
+    // public void Delete(ResPath path)
     private static bool WdpPrefixCreateDir(ref object __instance, ref object path)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -138,6 +143,7 @@ public static class UserDataPatch
         return false;
     }
 
+    //
     private static bool WdpPrefixDelete(ref object __instance, ref object path)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -148,6 +154,7 @@ public static class UserDataPatch
         return false;
     }
 
+    // public bool Exists(ResPath path)
     private static bool WdpPrefixExists(ref object __instance, ref bool __result, ref object path)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -158,10 +165,14 @@ public static class UserDataPatch
         return false;
     }
 
-    private static bool WdpPrefixFind(ref object __instance)
+    // public (IEnumerable<ResPath> files, IEnumerable<ResPath> directories) Find(string pattern, bool recursive = true)
+    private static bool WdpPrefixFind(ref object __instance, ref string pattern, ref bool recursive)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
             return true;
+
+        if (pattern.Contains(".."))
+            throw new InvalidOperationException($"Pattern may not contain '..'. Pattern: {pattern}."); // [sic]
 
         throw new NotImplementedException("Find is not implemented");
     }
@@ -171,7 +182,7 @@ public static class UserDataPatch
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
             return true;
 
-        // TODO LCDC Secvuln: original code does `yield break`, `yield return`
+        // TODO LCDC SC_VULN: original code does `yield break`, `yield return` - this method deviates in behaviour
         var diskPath = GetFullPath(__instance, path);
         if (!proxyVfs.Exists(diskPath))
         {
@@ -183,6 +194,7 @@ public static class UserDataPatch
         return false;
     }
 
+    // public bool IsDir(ResPath path)
     private static bool WdpPrefixIsDir(ref object __instance, ref bool __result, ref object path)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -193,6 +205,7 @@ public static class UserDataPatch
         return false;
     }
 
+    // public Stream Open(ResPath path, FileMode fileMode, FileAccess access, FileShare share)
     private static bool WdpPrefixOpen(ref object __instance, ref Stream __result, ref object path, ref FileMode fileMode, ref FileAccess access, ref FileShare share)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -213,19 +226,19 @@ public static class UserDataPatch
             return false;
         }
 
-        // We are editing an existing file
+        // We are editing an existing file, so throw
         if (fileMode == FileMode.CreateNew)
-            throw new IOException();
+            throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
 
         switch (fileNode)
         {
             case ProxyVfs.DiskFileNode:
                 if (access.HasFlag(FileAccess.Write))
                 {
-                    // As there is a possible write operation here,
+                    // As there is a potential write operation here,
                     // the disk node must now be collapsed into a memory node.
 
-                    Console.WriteLine($"PROXYVFS: Collapsed this node into a memory node {diskPath}");
+                    SanabiLogger.LogInfo($"PROXYVFS: Collapsed this node into a memory node {diskPath}");
 
                     using var fileStream = File.Open(diskPath, fileMode, access, share);
                     var memoryStream = new MemoryStream();
@@ -252,6 +265,7 @@ public static class UserDataPatch
         return false;
     }
 
+    // public IWritableDirProvider OpenSubdirectory(ResPath path)
     private static bool WdpPrefixOpenSubdirectory(ref object __instance, ref object __result, ref object path)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -288,7 +302,11 @@ public static class UserDataPatch
         return false;
     }
 
-
+    /// <summary>
+    ///     Simple VFS that tries to increase performance by reading 'stored' files from disk,
+    ///         and where mutated or newly added files get stored in memory.
+    /// </summary>
+    /// <param name="rootPath">On-disk path that is the root of the VFS.</param>
     private class ProxyVfs(string rootPath)
     {
         public bool TryFindNodeAtDisk(string path, [MaybeNullWhen(false)] out INode? node, DirectoryNode? searchedNode = null)
@@ -350,7 +368,7 @@ public static class UserDataPatch
         {
             if (!TryFindNodeAt(diskPath, out var node) ||
                 node is not DirectoryNode directoryNode)
-                throw new IOException();
+                throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
 
             var list = new List<string>();
             AddAllEnumeratedEntries(diskPath, directoryNode, list);
@@ -385,7 +403,7 @@ public static class UserDataPatch
 
             if (!TryFindNodeAt(relativeParentDir, out var parentNode) ||
                 parentNode is not DirectoryNode parentDirNode)
-                throw new IOException("Couldnt find parent of " + diskPath);
+                throw new IOException("Couldnt find parent of " + diskPath); // TODO LCDC SC_VULN: needs original exception message
 
             return parentDirNode;
         }
@@ -421,7 +439,7 @@ public static class UserDataPatch
         {
             var parentDirNode = FindParentOf(diskPath);
             if (!parentDirNode.Entries.Remove(Path.GetFileName(diskPath), out var removedNode))
-                throw new IOException();
+                throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
 
             return removedNode;
         }
@@ -458,13 +476,15 @@ public static class UserDataPatch
         public record class DirectoryNode(Dictionary<string, INode> Entries) : INode;
 
         public abstract record class FileNode : INode;
+
         /// <summary>
-        ///     Now mutated files that are now in memory, no longer in disk.
+        ///     Now-mutated (in the VFS) files that have been transferred from disk to memory.
         ///         When reading these, they are read from memory.
         /// </summary>
         public record class MemoryFileNode(MemoryStream Stream) : FileNode;
+
         /// <summary>
-        ///     Unmutated files that are on disk, not in memory.
+        ///     Unmutated (in the VFS) files that are stored on disk, not in memory.
         ///         When reading these, they are read directly from disk.
         /// </summary>
         public record class DiskFileNode(string Path) : FileNode;
@@ -498,7 +518,7 @@ public static class UserDataPatch
             public override int Read(byte[] buffer, int offset, int count)
             {
                 if (!CanRead)
-                    throw new IOException();
+                    throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
 
                 var oldPosition = _backer.Position;
 
@@ -513,7 +533,7 @@ public static class UserDataPatch
             public override void Write(byte[] buffer, int offset, int count)
             {
                 if (!CanWrite)
-                    throw new IOException();
+                    throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
 
                 var oldPosition = _backer.Position;
 
@@ -526,7 +546,7 @@ public static class UserDataPatch
             public override long Seek(long offset, SeekOrigin origin)
             {
                 if (!CanSeek)
-                    throw new IOException();
+                    throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
 
                 switch (origin)
                 {
