@@ -1,5 +1,14 @@
 SanabiLauncher is a fork of the launcher for SS14.
 
+# Installation Guide
+
+1. [Head to the installation link](https://github.com/LaCumbiaDelCoronavirus/SanabiLauncher/releases/latest)
+2. Download .zip corresponding to your system
+3. Extract downloaded .zip somewhere convenient - you will need to access the executable in it. Create a desktop shortcut or something.
+4. Open the executable that is extracted. You are done.
+
+# Development
+
 TODO:
 - [ ] API for mods to evade screengrabbing measures
 - [x] Test whether windowed-borderless mode actually works on linux
