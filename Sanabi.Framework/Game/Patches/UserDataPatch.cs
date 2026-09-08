@@ -1,9 +1,12 @@
 using Sanabi.Framework.Game.Managers;
+using Sanabi.Framework.Game.Utility;
 using Sanabi.Framework.Data;
 using Sanabi.Framework.Patching;
 using HarmonyLib;
 using System.Reflection;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.IO.Enumeration;
 using System.Runtime.InteropServices;
 using Sanabi.Framework.Misc;
 
@@ -129,10 +132,12 @@ public static class UserDataPatch
         ResManUserData.SetValue(__instance, wdp);
     }
 
+    [StackTraceHidden]
     private static string GetFullPath(dynamic wdp, object resPath)
         => WdpGetFullPath.Invoke(wdp, (object[])[resPath]);
 
     // public void Delete(ResPath path)
+    [StackTraceHidden]
     private static bool WdpPrefixCreateDir(ref object __instance, ref object path)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -144,17 +149,23 @@ public static class UserDataPatch
     }
 
     //
+    [StackTraceHidden]
     private static bool WdpPrefixDelete(ref object __instance, ref object path)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
             return true;
 
         var diskPath = GetFullPath(__instance, path);
-        proxyVfs.DeleteAt(diskPath);
+
+        // Real WritableDirProvider.Delete() only acts if the path exists; it's a silent no-op otherwise.
+        if (proxyVfs.Exists(diskPath))
+            proxyVfs.DeleteAt(diskPath);
+
         return false;
     }
 
     // public bool Exists(ResPath path)
+    [StackTraceHidden]
     private static bool WdpPrefixExists(ref object __instance, ref bool __result, ref object path)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -166,7 +177,8 @@ public static class UserDataPatch
     }
 
     // public (IEnumerable<ResPath> files, IEnumerable<ResPath> directories) Find(string pattern, bool recursive = true)
-    private static bool WdpPrefixFind(ref object __instance, ref string pattern, ref bool recursive)
+    [StackTraceHidden]
+    private static bool WdpPrefixFind(ref object __instance, ref object __result, ref string pattern, ref bool recursive)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
             return true;
@@ -174,9 +186,18 @@ public static class UserDataPatch
         if (pattern.Contains(".."))
             throw new InvalidOperationException($"Pattern may not contain '..'. Pattern: {pattern}."); // [sic]
 
-        throw new NotImplementedException("Find is not implemented");
+        var (files, directories) = proxyVfs.Find(pattern, recursive);
+
+        var resultType = typeof(ValueTuple<,>).MakeGenericType(ResPathFactory.ResPathEnumerableType, ResPathFactory.ResPathEnumerableType);
+        __result = Activator.CreateInstance(
+            resultType,
+            ResPathFactory.BuildRootedResPathList(files),
+            ResPathFactory.BuildRootedResPathList(directories))!;
+
+        return false;
     }
 
+    [StackTraceHidden]
     private static bool WdpPrefixDirectoryEntries(ref object __instance, ref IEnumerable<string> __result, ref object path)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -195,6 +216,7 @@ public static class UserDataPatch
     }
 
     // public bool IsDir(ResPath path)
+    [StackTraceHidden]
     private static bool WdpPrefixIsDir(ref object __instance, ref bool __result, ref object path)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -206,6 +228,7 @@ public static class UserDataPatch
     }
 
     // public Stream Open(ResPath path, FileMode fileMode, FileAccess access, FileShare share)
+    [StackTraceHidden]
     private static bool WdpPrefixOpen(ref object __instance, ref Stream __result, ref object path, ref FileMode fileMode, ref FileAccess access, ref FileShare share)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -228,7 +251,7 @@ public static class UserDataPatch
 
         // We are editing an existing file, so throw
         if (fileMode == FileMode.CreateNew)
-            throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
+            throw new IOException($"The file '{diskPath}' already exists.");
 
         switch (fileNode)
         {
@@ -266,6 +289,7 @@ public static class UserDataPatch
     }
 
     // public IWritableDirProvider OpenSubdirectory(ResPath path)
+    [StackTraceHidden]
     private static bool WdpPrefixOpenSubdirectory(ref object __instance, ref object __result, ref object path)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -293,6 +317,7 @@ public static class UserDataPatch
         return false;
     }
 
+    [StackTraceHidden]
     private static bool WdpPrefixRename(ref object __instance, ref object oldPath, ref object newPath)
     {
         if (!StealthedDirProviders.TryGetValue(__instance, out var proxyVfs))
@@ -309,6 +334,7 @@ public static class UserDataPatch
     /// <param name="rootPath">On-disk path that is the root of the VFS.</param>
     private class ProxyVfs(string rootPath)
     {
+        [StackTraceHidden]
         public bool TryFindNodeAtDisk(string path, [MaybeNullWhen(false)] out INode? node, DirectoryNode? searchedNode = null)
         {
             path = Path.GetRelativePath(RootPath, path);
@@ -318,6 +344,7 @@ public static class UserDataPatch
         /// <summary>
         ///     Takes path relative to root
         /// </summary>
+        [StackTraceHidden]
         public bool TryFindNodeAt(string path, [MaybeNullWhen(false)] out INode? node, DirectoryNode? searchedNode = null)
         {
             if (path.StartsWith(".."))
@@ -364,17 +391,23 @@ public static class UserDataPatch
             return true;
         }
 
+        [StackTraceHidden]
         public List<string> EnumerateAllEntries(string diskPath)
         {
-            if (!TryFindNodeAt(diskPath, out var node) ||
-                node is not DirectoryNode directoryNode)
-                throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
+            // Mirrors Directory.EnumerateFileSystemEntries: missing directory vs. path-is-a-file
+            // are two distinct real .NET failure modes with different exception types.
+            if (!TryFindNodeAt(diskPath, out var node))
+                throw new DirectoryNotFoundException($"Could not find a part of the path '{diskPath}'.");
+
+            if (node is not DirectoryNode directoryNode)
+                throw new IOException($"The parameter is incorrect. : '{diskPath}'.");
 
             var list = new List<string>();
             AddAllEnumeratedEntries(diskPath, directoryNode, list);
             return list;
         }
 
+        [StackTraceHidden]
         public static void AddAllEnumeratedEntries(string currentDiskPath, DirectoryNode currentNode, List<string> list)
         {
             foreach (var (entryName, entryNode) in currentNode.Entries)
@@ -387,6 +420,7 @@ public static class UserDataPatch
             }
         }
 
+        [StackTraceHidden]
         public static void AddAllEnumeratedNodes(DirectoryNode currentNode, List<INode> list)
         {
             foreach (var (_, entryNode) in currentNode.Entries)
@@ -396,6 +430,42 @@ public static class UserDataPatch
             }
         }
 
+        /// <summary>
+        ///     Mirrors WritableDirProvider.Find, which is just Directory.GetFiles/GetDirectories
+        ///         under the hood: the pattern is matched against each entry's own name (not its
+        ///         full path) using the same "simple" wildcard semantics .NET uses there, and
+        ///         `recursive` controls whether it descends into subdirectories at all.
+        /// </summary>
+        [StackTraceHidden]
+        public (List<string> files, List<string> directories) Find(string pattern, bool recursive)
+        {
+            var files = new List<string>();
+            var directories = new List<string>();
+            FindRecursive(RootNode, "", pattern, recursive, files, directories);
+            return (files, directories);
+        }
+
+        [StackTraceHidden]
+        private static void FindRecursive(DirectoryNode node, string currentPath, string pattern, bool recursive, List<string> files, List<string> directories)
+        {
+            foreach (var (entryName, entryNode) in node.Entries)
+            {
+                var entryPath = currentPath + "/" + entryName;
+
+                if (FileSystemName.MatchesSimpleExpression(pattern, entryName))
+                {
+                    if (entryNode is DirectoryNode)
+                        directories.Add(entryPath);
+                    else
+                        files.Add(entryPath);
+                }
+
+                if (recursive && entryNode is DirectoryNode entryDirectoryNode)
+                    FindRecursive(entryDirectoryNode, entryPath, pattern, recursive, files, directories);
+            }
+        }
+
+        [StackTraceHidden]
         public DirectoryNode FindParentOf(string diskPath)
         {
             var parentDir = Directory.GetParent(diskPath)!.FullName;
@@ -403,11 +473,12 @@ public static class UserDataPatch
 
             if (!TryFindNodeAt(relativeParentDir, out var parentNode) ||
                 parentNode is not DirectoryNode parentDirNode)
-                throw new IOException("Couldnt find parent of " + diskPath); // TODO LCDC SC_VULN: needs original exception message
+                throw new DirectoryNotFoundException($"Could not find a part of the path '{diskPath}'.");
 
             return parentDirNode;
         }
 
+        [StackTraceHidden]
         public void PopulateFromRoot()
         {
             foreach (var entryDiskPath in Directory.EnumerateFileSystemEntries(RootPath))
@@ -422,12 +493,14 @@ public static class UserDataPatch
             }
         }
 
+        [StackTraceHidden]
         public void SetDir(string diskPath, DirectoryNode directoryNode)
         {
             var parentDirNode = FindParentOf(diskPath);
             parentDirNode.Entries[Path.GetFileName(diskPath)] = directoryNode;
         }
 
+        [StackTraceHidden]
         public void SetFile(string diskPath, FileNode fileNode)
         {
             var parentDirNode = FindParentOf(diskPath);
@@ -435,21 +508,27 @@ public static class UserDataPatch
         }
 
         /// <returns>The removed node.</returns>
+        [StackTraceHidden]
         public INode DeleteAt(string diskPath)
         {
             var parentDirNode = FindParentOf(diskPath);
+
+            // Only reachable via Rename now (WdpPrefixDelete pre-checks Exists), which mirrors
+            // File.Move's behaviour for a missing source.
             if (!parentDirNode.Entries.Remove(Path.GetFileName(diskPath), out var removedNode))
-                throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
+                throw new FileNotFoundException($"Could not find file '{diskPath}'.");
 
             return removedNode;
         }
 
+        [StackTraceHidden]
         public bool Exists(string diskPath)
         {
             var parentDirNode = FindParentOf(diskPath);
             return parentDirNode.Entries.ContainsKey(Path.GetFileName(diskPath));
         }
 
+        [StackTraceHidden]
         public void Rename(string oldDiskPath, string newDiskPath)
         {
             // Just detach it
@@ -459,6 +538,7 @@ public static class UserDataPatch
             parentNewDirNode.Entries[Path.GetFileName(newDiskPath)] = detachedNode;
         }
 
+        [StackTraceHidden]
         public ref INode GetNodeRefOrAddDefault(string diskPath)
         {
             var parentDirNode = FindParentOf(diskPath);
@@ -514,10 +594,11 @@ public static class UserDataPatch
                 set => _position = value;
             }
 
+            [StackTraceHidden]
             public override int Read(byte[] buffer, int offset, int count)
             {
                 if (!CanRead)
-                    throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
+                    throw new NotSupportedException("Stream does not support reading.");
 
                 _backer.Position = _position;
                 var bytes = _backer.Read(buffer, offset, count);
@@ -526,16 +607,18 @@ public static class UserDataPatch
                 return bytes;
             }
 
+            [StackTraceHidden]
             public override void Write(byte[] buffer, int offset, int count)
             {
                 if (!CanWrite)
-                    throw new IOException(); // TODO LCDC SC_VULN: needs original exception message
+                    throw new NotSupportedException("Stream does not support writing.");
 
                 _backer.Position = _position;
                 _backer.Write(buffer, offset, count);
                 _position = _backer.Position;
             }
 
+            [StackTraceHidden]
             public override long Seek(long offset, SeekOrigin origin)
             {
                 _position = origin switch
