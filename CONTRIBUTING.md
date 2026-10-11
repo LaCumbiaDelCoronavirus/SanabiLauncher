@@ -63,9 +63,22 @@ A real payload must **not** contain the `//` comments below.
       // real launcher version), shown as-is above the entry's changes.
       "version": "SANABI-220-7",
 
-      // Changelog body text for this entry. Supports newlines (\n) and is wrapped/
-      // displayed as-is; no other formatting (e.g. markdown) is applied.
-      "changes": "- Added a changelog.\n- Fixed some bugs."
+      // Per-locale changelog body text for this entry, keyed by culture name like
+      // "messages" above, and resolved the same way (current language -> parent
+      // cultures -> "en-US"; see LauncherInfoManager.GetLocalizedChangelog). Entries
+      // with no text for the current language or "en-US" are hidden. Re-resolved when
+      // the language is switched. Supports newlines (\n) and is wrapped/displayed
+      // as-is; no other formatting (e.g. markdown) is applied.
+      "changes": {
+        "en-US": "- Added a changelog.\n- Fixed some bugs.",
+        "ru": "- Добавлен список изменений.\n- Исправлены ошибки."
+      }
+    },
+    {
+      // Legacy format: a plain string is still accepted and treated as "en-US" text
+      // (so it's shown for every language that has no text of its own).
+      "version": "SANABI-220-6",
+      "changes": "- Older entry."
     }
   ],
 

@@ -17,7 +17,7 @@ namespace SS14.Launcher.Models;
 /// </summary>
 public sealed class LauncherInfoManager(HttpClient httpClient)
 {
-    private const string FallbackMessageLocale = "en-US";
+    private const string FallbackLocale = "en-US";
 
     private readonly Random _messageRandom = new();
 
@@ -67,7 +67,7 @@ public sealed class LauncherInfoManager(HttpClient httpClient)
 
     public string? GetRandomMessage()
     {
-        var messages = GetMessagesForCurrentCulture();
+        var messages = GetForCurrentCulture(_model?.Messages);
         if (messages == null || messages.Length == 0)
             return null;
 
@@ -75,24 +75,39 @@ public sealed class LauncherInfoManager(HttpClient httpClient)
     }
 
     /// <summary>
-    ///     Picks the message list matching the launcher's currently selected language
-    ///     (falling back to parent cultures, then <see cref="FallbackMessageLocale"/>).
+    ///     Returns the changelog with each entry's changes resolved for the launcher's currently selected
+    ///     language (see <see cref="GetForCurrentCulture{T}"/>). Entries with no usable text are dropped.
     /// </summary>
-    private string[]? GetMessagesForCurrentCulture()
+    public (string Version, string Changes)[] GetLocalizedChangelog()
     {
-        var messages = _model?.Messages;
-        if (messages == null)
+        if (_model == null)
+            return [];
+
+        return _model.ChangelogEntries
+            .Select(e => (e.Version, Changes: GetForCurrentCulture(e.Changes)))
+            .Where(e => !string.IsNullOrWhiteSpace(e.Changes))
+            .Select(e => (e.Version, e.Changes!))
+            .ToArray();
+    }
+
+    /// <summary>
+    ///     Picks the value matching the launcher's currently selected language
+    ///     (falling back to parent cultures, then <see cref="FallbackLocale"/>).
+    /// </summary>
+    private static T? GetForCurrentCulture<T>(Dictionary<string, T>? localized) where T : class
+    {
+        if (localized == null)
             return null;
 
         for (var culture = CultureInfo.CurrentUICulture;
              !culture.Equals(CultureInfo.InvariantCulture);
              culture = culture.Parent)
         {
-            if (messages.TryGetValue(culture.Name, out var localeMessages))
-                return localeMessages;
+            if (localized.TryGetValue(culture.Name, out var value))
+                return value;
         }
 
-        return messages.GetValueOrDefault(FallbackMessageLocale);
+        return localized.GetValueOrDefault(FallbackLocale);
     }
 
     public sealed record LauncherInfoModel(
@@ -118,7 +133,7 @@ public sealed class LauncherInfoManager(HttpClient httpClient)
         /// </summary>
         [JsonIgnore]
         public ChangelogEntry[] ChangelogEntries =>
-            Changelog?.Where(e => !string.IsNullOrWhiteSpace(e?.Version) && e.Changes != null).ToArray() ?? [];
+            Changelog?.Where(e => !string.IsNullOrWhiteSpace(e?.Version) && e.Changes is { Count: > 0 }).ToArray() ?? [];
 
         /// <summary>
         ///     Optional media URL to show below the changelog. Guaranteed non-null (empty if unset/invalid).
@@ -131,7 +146,41 @@ public sealed class LauncherInfoManager(HttpClient httpClient)
         [property:JsonPropertyName("version")]
         string Version,
 
+        /// <summary>
+        ///     Per-locale changelog text. In JSON this is either a locale -> text object, or a plain
+        ///     string (legacy format), which is treated as <see cref="FallbackLocale"/> text.
+        /// </summary>
         [property:JsonPropertyName("changes")]
-        string Changes
+        [property:JsonConverter(typeof(LocalizedStringConverter))]
+        Dictionary<string, string> Changes
     );
+
+    /// <summary>
+    ///     Reads either a plain string or a locale -> string object into a locale -> string dictionary.
+    /// </summary>
+    private sealed class LocalizedStringConverter : JsonConverter<Dictionary<string, string>>
+    {
+        public override Dictionary<string, string>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.Null:
+                    return null;
+                case JsonTokenType.String:
+                    return new Dictionary<string, string> { [FallbackLocale] = reader.GetString()! };
+                case JsonTokenType.StartObject:
+                    var dict = JsonSerializer.Deserialize<Dictionary<string, string?>>(ref reader, options);
+                    return dict?
+                        .Where(kv => kv.Value != null)
+                        .ToDictionary(kv => kv.Key, kv => kv.Value!);
+                default:
+                    throw new JsonException($"Expected string or object for localized text, got {reader.TokenType}.");
+            }
+        }
+
+        public override void Write(Utf8JsonWriter writer, Dictionary<string, string> value, JsonSerializerOptions options)
+        {
+            JsonSerializer.Serialize(writer, value, options);
+        }
+    }
 }

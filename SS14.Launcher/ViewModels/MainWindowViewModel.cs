@@ -87,6 +87,12 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
 
         SetLoginMenuShowing(_cfg.GetCVar(SanabiCVars.StartOnLoginMenu));
 
+        _loc.LanguageSwitched += () =>
+        {
+            if (OutOfDate)
+                RefreshChangelogEntries();
+        };
+
         this.WhenAnyValue(x => x.ChangelogEntries)
             .Subscribe(_ => this.RaisePropertyChanged(nameof(HasChangelogEntries)));
         this.WhenAnyValue(x => x.ChangelogMediaSource)
@@ -286,9 +292,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
 
         try
         {
-            ChangelogEntries = model.ChangelogEntries
-                .Select(e => new ChangelogEntryViewModel(e.Version, e.Changes))
-                .ToArray();
+            RefreshChangelogEntries();
         }
         catch (Exception e)
         {
@@ -297,6 +301,13 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         }
 
         await LoadChangelogMedia(model.SafeChangelogMediaUrl);
+    }
+
+    private void RefreshChangelogEntries()
+    {
+        ChangelogEntries = _infoManager.GetLocalizedChangelog()
+            .Select(e => new ChangelogEntryViewModel(e.Version, e.Changes))
+            .ToArray();
     }
 
     // Magic-number signatures for the raster formats we're willing to render.
