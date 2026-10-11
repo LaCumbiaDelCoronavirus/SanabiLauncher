@@ -5,6 +5,7 @@ import os
 import subprocess
 import shutil
 import glob
+import zipfile
 
 from download_net_runtime import update_netcore_runtime, PLATFORM_WINDOWS, PLATFORM_WINDOWS_ARM64, PLATFORM_LINUX, PLATFORM_LINUX_ARM64, PLATFORM_MACOS, PLATFORM_MACOS_ARM64
 from exe_set_subsystem import set_subsystem
@@ -112,7 +113,7 @@ def publish_linux(x64_only: bool):
     shutil.copyfile("PublishFiles/SS14.Launcher", "bin/publish/Linux/SS14.Launcher")
     shutil.copyfile("PublishFiles/SS14.desktop", "bin/publish/Linux/SS14.desktop")
 
-    shutil.make_archive("SanabiLauncher_Linux", "zip", "bin/publish/Linux")
+    make_unix_zip("SanabiLauncher_Linux.zip", "bin/publish/Linux")
 
 
 def publish_osx():
@@ -138,7 +139,36 @@ def publish_osx():
     shutil.copytree("Dependencies/dotnet/mac", f"{res_root}/x86_64/dotnet")
     shutil.copytree("Dependencies/dotnet/mac-arm64", f"{res_root}/arm64/dotnet")
 
-    shutil.make_archive("SanabiLauncher_macOS", "zip", "bin/publish/macOS/")
+    make_unix_zip("SanabiLauncher_macOS.zip", "bin/publish/macOS")
+
+def is_unix_executable(rel_path: str) -> bool:
+    rel_path = rel_path.replace("\\", "/")
+    name = rel_path.rsplit("/", 1)[-1]
+
+    if ".app/Contents/MacOS/" in rel_path:
+        return True
+
+    # Extensionless files (dotnet host, apphosts, launcher script) and shell scripts.
+    return "." not in name or name.endswith(".sh")
+
+def make_unix_zip(zip_path: str, root: str):
+    """Zips root, setting Unix permissions explicitly since building on Windows loses exec bits."""
+    if os.path.exists(zip_path):
+        os.remove(zip_path)
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for dirpath, _, filenames in os.walk(root):
+            for filename in filenames:
+                full = os.path.join(dirpath, filename)
+                rel = os.path.relpath(full, root).replace(os.sep, "/")
+
+                info = zipfile.ZipInfo.from_file(full, rel)
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.create_system = 3  # Unix
+                info.external_attr = (0o755 if is_unix_executable(rel) else 0o644) << 16
+
+                with open(full, "rb") as f:
+                    zf.writestr(info, f.read())
 
 def clear_prev_publish(publish_dir: str):
     shutil.rmtree(f"bin/publish/{publish_dir}", ignore_errors=True)

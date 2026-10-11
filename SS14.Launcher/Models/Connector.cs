@@ -20,6 +20,7 @@ using Sanabi.Framework.Game.Managers;
 using Sanabi.Framework.Game.Patches;
 using Serilog;
 using Splat;
+using SS14.Launcher.Api;
 using SS14.Launcher.Models.Data;
 using SS14.Launcher.Models.EngineManager;
 using SS14.Launcher.Models.Logins;
@@ -103,6 +104,12 @@ public partial class Connector : ReactiveObject
             Log.Information(e, "Cancelled connect");
             Status = ConnectionStatus.Cancelled;
         }
+        catch (Exception e)
+        {
+            // This is async void, an unhandled exception here would take down the whole launcher.
+            Log.Error(e, "Unexpected exception while connecting");
+            Status = ConnectionStatus.ConnectionFailed;
+        }
         finally
         {
             Cleanup();
@@ -126,6 +133,11 @@ public partial class Connector : ReactiveObject
         {
             Log.Information(e, "Cancelled launch");
             Status = ConnectionStatus.Cancelled;
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Unexpected exception while launching content bundle");
+            Status = ConnectionStatus.ConnectionFailed;
         }
         finally
         {
@@ -410,17 +422,33 @@ public partial class Connector : ReactiveObject
 
         if (info != null && info.AuthInformation.Mode != AuthMode.Disabled && _loginManager.ActiveAccount is { } account)
         {
-            var accStatus = await _loginManager.UpdateSingleAccountStatus(account);
+            AccountLoginStatus accStatus;
+            try
+            {
+                accStatus = await _loginManager.UpdateSingleAccountStatus(account);
+            }
+            catch (Exception e) when (e is AuthApiException or HttpRequestException or TaskCanceledException)
+            {
+                Log.Error(e, "Failed to update account status before launch");
+                throw new ConnectException(ConnectionStatus.ConnectionFailed, e);
+            }
+
             if (accStatus == AccountLoginStatus.Expired)
             {
+                Log.Error("Account login status is expired");
                 _loginManager.SetActiveAccount(null);
-                throw new Exception("Account login status is expired, grim");
+                throw new ConnectException(ConnectionStatus.ConnectionFailed);
             }
 
             cVars.Add(("ROBUST_AUTH_TOKEN", account.LoginInfo.Token.Token));
             cVars.Add(("ROBUST_AUTH_USERID", account.LoginInfo.UserId.ToString()));
-            cVars.Add(("ROBUST_AUTH_PUBKEY", info.AuthInformation.PublicKey));
-            cVars.Add(("ROBUST_AUTH_SERVER", ConfigConstants.AuthUrl.GetMostSuccessfulUrl()));
+            if (info.AuthInformation.PublicKey != null)
+                cVars.Add(("ROBUST_AUTH_PUBKEY", info.AuthInformation.PublicKey));
+
+            // Use the auth server the account actually authenticated against, if known.
+            var authServer = account.SupportedAuthServers?.FirstOrDefault()?.UrlSet.GetMostSuccessfulUrl()
+                             ?? ConfigConstants.AuthUrl.GetMostSuccessfulUrl();
+            cVars.Add(("ROBUST_AUTH_SERVER", authServer));
         }
 
         try
@@ -606,13 +634,16 @@ public partial class Connector : ReactiveObject
 
         var startInfo = await GetLoaderStartInfo();
 
+        EnsureExecutable(startInfo.FileName);
+
         startInfo.ArgumentList.Add(binPath);
         startInfo.ArgumentList.Add(sig);
         startInfo.ArgumentList.Add(pubKey);
 
         foreach (var (k, v) in env)
         {
-            startInfo.EnvironmentVariables[k] = v;
+            if (v != null)
+                startInfo.EnvironmentVariables[k] = v;
         }
 
         if (_cfg.GetCVar(SanabiCVars.HarmonyDebug))
@@ -718,7 +749,8 @@ public partial class Connector : ReactiveObject
 
         void EnvVar(string envVar, string? value)
         {
-            startInfo.EnvironmentVariables[envVar] = value;
+            if (value != null)
+                startInfo.EnvironmentVariables[envVar] = value;
             // Log.Debug("Env: {EnvVar} = {Value}", envVar, value);
         }
     }
@@ -777,6 +809,27 @@ public partial class Connector : ReactiveObject
 
         DoPipe(process.StandardError);
         DoPipe(process.StandardOutput);
+    }
+
+    /// <summary>
+    ///     Makes sure the file has the user-execute bit on non-Windows platforms,
+    ///         as zips built on Windows may have lost it.
+    /// </summary>
+    private static void EnsureExecutable(string path)
+    {
+        if (OperatingSystem.IsWindows() || !File.Exists(path))
+            return;
+
+        try
+        {
+            var mode = File.GetUnixFileMode(path);
+            if ((mode & UnixFileMode.UserExecute) == 0)
+                File.SetUnixFileMode(path, mode | UnixFileMode.UserExecute);
+        }
+        catch (Exception e)
+        {
+            Log.Warning(e, "Failed to ensure execute permission on {Path}", path);
+        }
     }
 
 #pragma warning disable 162

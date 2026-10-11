@@ -21,6 +21,12 @@ public static class AssemblyManager
     private static bool _fulfilled = false;
 
     /// <summary>
+    ///     Guards every dictionary here; assembly load events fire on arbitrary threads.
+    ///         Callbacks are never invoked while holding it.
+    /// </summary>
+    private static readonly object _lock = new();
+
+    /// <summary>
     ///     All assemblies ever found.
     /// </summary>
     public static readonly Dictionary<string, Assembly> AssembliesIncludingUnnecessary = [];
@@ -49,7 +55,10 @@ public static class AssemblyManager
     ///         <see cref="AssembliesIncludingUnnecessary"/>.
     /// </summary>
     public static bool TryGetAssembly(string assemblyName, [MaybeNullWhen(false)] out Assembly assembly, bool includeUnnecessary = false)
-        => (includeUnnecessary ? AssembliesIncludingUnnecessary : Assemblies).TryGetValue(assemblyName, out assembly);
+    {
+        lock (_lock)
+            return (includeUnnecessary ? AssembliesIncludingUnnecessary : Assemblies).TryGetValue(assemblyName, out assembly);
+    }
 
     /// <summary>
     ///     Runs a callback once ever when the given assembly gets loaded.
@@ -57,17 +66,21 @@ public static class AssemblyManager
     /// </summary>
     public static void SubscribeSpecificAssemblyOnce(string assemblyName, Action<Assembly> callback)
     {
-        if (TryGetAssembly(assemblyName, out var existingAssembly, includeUnnecessary: true))
+        Assembly? existingAssembly;
+        lock (_lock)
         {
-            callback.Invoke(existingAssembly);
-            return;
+            if (!AssembliesIncludingUnnecessary.TryGetValue(assemblyName, out existingAssembly))
+            {
+                ref var reference = ref CollectionsMarshal.GetValueRefOrAddDefault(SpecificAssemblyCallbacks, assemblyName, out var callbacksExist);
+                if (!callbacksExist)
+                    reference = [];
+
+                reference!.Add(callback);
+                return;
+            }
         }
 
-        ref var reference = ref CollectionsMarshal.GetValueRefOrAddDefault(SpecificAssemblyCallbacks, assemblyName, out var callbacksExist);
-        if (!callbacksExist)
-            reference = [];
-
-        reference!.Add(callback);
+        callback.Invoke(existingAssembly);
     }
 
     /// <summary>
@@ -89,25 +102,28 @@ public static class AssemblyManager
 
     private static void CheckFulfillment()
     {
-        if (_fulfilled)
-            return;
-
-        var fulfilledCount = 0;
-        foreach (var (assemblyName, _) in Assemblies)
+        int fulfilledCount;
+        lock (_lock)
         {
-            if (_necessaryAssemblyNames.Contains(assemblyName))
-                fulfilledCount++;
-        }
+            if (_fulfilled)
+                return;
 
-        Debug.Assert(fulfilledCount <= _necessaryAssemblyNames.Length, "fulfilledCount was higher than #_necessaryAssemblyNames");
-        if (fulfilledCount == _necessaryAssemblyNames.Length)
-        {
+            fulfilledCount = 0;
+            foreach (var (assemblyName, _) in Assemblies)
+            {
+                if (_necessaryAssemblyNames.Contains(assemblyName))
+                    fulfilledCount++;
+            }
+
+            Debug.Assert(fulfilledCount <= _necessaryAssemblyNames.Length, "fulfilledCount was higher than #_necessaryAssemblyNames");
+            if (fulfilledCount != _necessaryAssemblyNames.Length)
+                return;
+
             _fulfilled = true;
-            OnAssembliesFulfilled?.Invoke();
-            Console.WriteLine($"Assembly-Mng-Fulfilled: {fulfilledCount}");
-
-            return;
         }
+
+        OnAssembliesFulfilled?.Invoke();
+        Console.WriteLine($"Assembly-Mng-Fulfilled: {fulfilledCount}");
     }
 
     /// <summary>
@@ -117,32 +133,40 @@ public static class AssemblyManager
     /// </summary>
     public static void QueryAssemblies()
     {
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        var pendingCallbacks = new List<(Action<Assembly> Callback, Assembly Assembly)>();
+
+        lock (_lock)
         {
-            if (assembly.GetName().Name is not { } name)
-                continue;
-
-            AssembliesIncludingUnnecessary[name] = assembly;
-
-            foreach (var necessaryAssemblyName in _necessaryAssemblyNames)
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                // Dont do Contains; Robust.Shared.Maths shouldn't count for Robust.Shared
-                if (name != necessaryAssemblyName)
+                if (assembly.GetName().Name is not { } name)
                     continue;
 
-                Assemblies[necessaryAssemblyName] = assembly;
-                Console.WriteLine($"Assembly-Mng-BruteForce-Found: {necessaryAssemblyName}");
+                AssembliesIncludingUnnecessary[name] = assembly;
+
+                foreach (var necessaryAssemblyName in _necessaryAssemblyNames)
+                {
+                    // Dont do Contains; Robust.Shared.Maths shouldn't count for Robust.Shared
+                    if (name != necessaryAssemblyName)
+                        continue;
+
+                    Assemblies[necessaryAssemblyName] = assembly;
+                    Console.WriteLine($"Assembly-Mng-BruteForce-Found: {necessaryAssemblyName}");
+                }
+            }
+
+            foreach (var (assemblyCallbackKey, assemblyCallbacks) in SpecificAssemblyCallbacks)
+            {
+                if (!AssembliesIncludingUnnecessary.TryGetValue(assemblyCallbackKey, out var callbackAssembly))
+                    continue;
+
+                foreach (var assemblyCallback in assemblyCallbacks)
+                    pendingCallbacks.Add((assemblyCallback, callbackAssembly));
             }
         }
 
-        foreach (var (assemblyCallbackKey, assemblyCallbacks) in SpecificAssemblyCallbacks)
-        {
-            if (!AssembliesIncludingUnnecessary.TryGetValue(assemblyCallbackKey, out var callbackAssembly))
-                continue;
-
-            foreach (var assemblyCallback in assemblyCallbacks)
-                assemblyCallback.Invoke(callbackAssembly);
-        }
+        foreach (var (assemblyCallback, callbackAssembly) in pendingCallbacks)
+            assemblyCallback.Invoke(callbackAssembly);
 
         CheckFulfillment();
     }
@@ -153,23 +177,28 @@ public static class AssemblyManager
         if (loadedAssembly.GetName().Name is not { } assemblyName)
             return;
 
-        AssembliesIncludingUnnecessary[assemblyName] = loadedAssembly;
-
-        foreach (var necessaryAssemblyName in _necessaryAssemblyNames)
+        List<Action<Assembly>>? callbacks;
+        lock (_lock)
         {
-            if (assemblyName.Contains(necessaryAssemblyName) == true)
+            AssembliesIncludingUnnecessary[assemblyName] = loadedAssembly;
+
+            foreach (var necessaryAssemblyName in _necessaryAssemblyNames)
             {
-                Assemblies[necessaryAssemblyName] = loadedAssembly;
-                Console.WriteLine($"Assembly-Mng-Loaded-Found: {necessaryAssemblyName}");
+                // Exact match; Content.Shared.Database shouldn't count for Content.Shared
+                if (string.Equals(assemblyName, necessaryAssemblyName, StringComparison.Ordinal))
+                {
+                    Assemblies[necessaryAssemblyName] = loadedAssembly;
+                    Console.WriteLine($"Assembly-Mng-Loaded-Found: {necessaryAssemblyName}");
+                }
             }
+
+            SpecificAssemblyCallbacks.Remove(assemblyName, out callbacks);
         }
 
-        if (SpecificAssemblyCallbacks.TryGetValue(assemblyName, out var callbacks))
+        if (callbacks != null)
         {
             foreach (var callback in callbacks)
                 callback.Invoke(loadedAssembly);
-
-            SpecificAssemblyCallbacks.Remove(assemblyName);
         }
 
         CheckFulfillment();

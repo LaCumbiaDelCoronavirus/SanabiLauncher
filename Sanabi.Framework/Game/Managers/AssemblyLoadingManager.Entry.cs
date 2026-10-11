@@ -54,11 +54,28 @@ public static partial class AssemblyLoadingManager
         }
 
         if (async)
-            _ = Task.Run(async () => entryMethod.Invoke(null, invokedParameters));
+            _ = Task.Run(() => InvokeEntry(entryMethod, invokedParameters));
         else
-            entryMethod.Invoke(null, invokedParameters);
+            InvokeEntry(entryMethod, invokedParameters);
 
         Console.WriteLine($"Entered patch at {entryMethod.DeclaringType?.FullName}");
+    }
+
+    /// <summary>
+    ///     Invokes an entry method, logging instead of throwing so one failing
+    ///         patch can't stop the rest.
+    /// </summary>
+    private static void InvokeEntry(MethodInfo entryMethod, object?[]? invokedParameters)
+    {
+        try
+        {
+            entryMethod.Invoke(null, invokedParameters);
+        }
+        catch (Exception exception)
+        {
+            var actual = exception is TargetInvocationException { InnerException: { } inner } ? inner : exception;
+            SanabiLogger.LogError($"Patch entry {entryMethod.DeclaringType?.FullName}.{entryMethod.Name} failed: {actual}");
+        }
     }
 
     public static void EnterDb(MethodInfo entryMethod, bool async = false)
@@ -70,9 +87,9 @@ public static partial class AssemblyLoadingManager
             invokedParameters = [AssemblyManager.Assemblies];
 
         if (async)
-            _ = Task.Run(async () => entryMethod.Invoke(null, invokedParameters));
+            _ = Task.Run(() => InvokeEntry(entryMethod, invokedParameters));
         else
-            entryMethod.Invoke(null, invokedParameters);
+            InvokeEntry(entryMethod, invokedParameters);
 
         Console.WriteLine($"Entered patch at {entryMethod.DeclaringType?.FullName}");
     }

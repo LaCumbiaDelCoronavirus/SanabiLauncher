@@ -1,5 +1,5 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 using HarmonyLib;
 
 namespace Sanabi.Framework.Game.Managers;
@@ -13,7 +13,7 @@ public static class ReflectionManager
     ///     Cache of types by their fully qualified type name
     ///         and actual existing type.
     /// </summary>
-    private static Dictionary<string, Type> _cachedTypes = new();
+    private static readonly ConcurrentDictionary<string, Type> _cachedTypes = new();
 
     /// <summary>
     ///     Tries to get a type from it's fully qualified type-name.
@@ -52,23 +52,14 @@ public static class ReflectionManager
     /// <inheritdoc cref="TryGetTypeByQualifiedName(string, out Type)"/> // inherit param
     public static Type GetTypeByQualifiedName(string qualifiedTypeName, bool except = false)
     {
-        ref var cachedTypeRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedTypes, qualifiedTypeName, out var exists);
+        if (TryGetTypeByQualifiedName(qualifiedTypeName, out var foundType))
+            return foundType;
 
-        if (!exists)
-        {
-            if (AssemblyManager.TryGetAssembly(ExtractTypePrefix(qualifiedTypeName), out var assembly))
-                cachedTypeRef = assembly.GetType(qualifiedTypeName);
-            else if (AccessTools.TypeByName(qualifiedTypeName) is { } foundType)
-                cachedTypeRef = foundType;
-            else
-                throw new InvalidOperationException($"Couldn't locate qualified type \"{qualifiedTypeName}\"!");
-        }
+        if (except)
+            throw new InvalidOperationException($"Couldn't locate qualified type \"{qualifiedTypeName}\"!");
 
-        if (except &&
-            cachedTypeRef is not { })
-            throw new InvalidOperationException($"Couldn't resolve {qualifiedTypeName}!");
-
-        return cachedTypeRef!;
+        // except == false: callers opt into a null result. Nulls are never cached.
+        return null!;
     }
 
     /// <summary>
@@ -84,6 +75,6 @@ public static class ReflectionManager
         const char separator = '.';
 
         var split = path.Split(separator);
-        return split[0] + separator + split[1];
+        return split.Length < 2 ? path : split[0] + separator + split[1];
     }
 }

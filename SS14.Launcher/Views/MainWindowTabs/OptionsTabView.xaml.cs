@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -45,7 +46,7 @@ public partial class OptionsTabView : UserControl
         await ClearServerContentButton.DisplayDoneMessage(
             locMgr.GetString("tab-options-restart-message"), duration: 1000);
 
-        Process.Start(Environment.ProcessPath!, Environment.GetCommandLineArgs());
+        Process.Start(Environment.ProcessPath!, Environment.GetCommandLineArgs().Skip(1));
         Environment.Exit(-1);
     }
 

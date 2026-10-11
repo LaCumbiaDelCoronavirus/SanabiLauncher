@@ -32,7 +32,15 @@ public static class PatchEntryAttributeManager
                         !attribute.RunLevel.HasFlag(runLevel))
                         continue;
 
-                    AssemblyLoadingManager.Enter(method, attribute.Async);
+                    // Enter logs failures itself, but guard here too so nothing can abort the loop
+                    try
+                    {
+                        AssemblyLoadingManager.Enter(method, attribute.Async);
+                    }
+                    catch (Exception exception)
+                    {
+                        SanabiLogger.LogError($"Patch entry {method.DeclaringType?.FullName}.{method.Name} failed: {exception}");
+                    }
                 }
             }
         }

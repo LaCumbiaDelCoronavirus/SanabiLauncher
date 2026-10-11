@@ -6,18 +6,29 @@ namespace Sanabi.Framework.Game.Utility;
 
 public static class ResPathFactory
 {
-    public static readonly Type ResPathType = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.Utility.ResPath", except: true);
-    private static readonly ConstructorInfo ResPathConstructor = PatchHelpers.GetConstructor(ResPathType, [typeof(string)]);
-    private static readonly MethodInfo ResPathToRootedPath = PatchHelpers.GetMethod(ResPathType, "ToRootedPath")!;
+    // Resolved lazily so a missing engine member only fails when actually used, not on type init
+    private static readonly Lazy<Type> _resPathType = new(()
+        => ReflectionManager.GetTypeByQualifiedName("Robust.Shared.Utility.ResPath", except: true));
+    private static readonly Lazy<ConstructorInfo> _resPathConstructor = new(()
+        => PatchHelpers.GetConstructor(ResPathType, [typeof(string)])
+            ?? throw new InvalidOperationException("Couldn't resolve ResPath(string) constructor!"));
+    private static readonly Lazy<MethodInfo> _resPathToRootedPath = new(()
+        => PatchHelpers.GetMethod(ResPathType, "ToRootedPath", except: true)!);
 
-    private static readonly Type ResPathListType = typeof(List<>).MakeGenericType(ResPathType);
-    private static readonly MethodInfo ResPathListAdd = ResPathListType.GetMethod("Add")!;
+    private static readonly Lazy<Type> _resPathListType = new(() => typeof(List<>).MakeGenericType(ResPathType));
+    private static readonly Lazy<MethodInfo> _resPathListAdd = new(() => ResPathListType.GetMethod("Add")!);
+
+    public static Type ResPathType => _resPathType.Value;
+    private static ConstructorInfo ResPathConstructor => _resPathConstructor.Value;
+    private static MethodInfo ResPathToRootedPath => _resPathToRootedPath.Value;
+    private static Type ResPathListType => _resPathListType.Value;
+    private static MethodInfo ResPathListAdd => _resPathListAdd.Value;
 
     /// <summary>
     ///     IEnumerable&lt;ResPath&gt;, for building patch return values that mirror
     ///         RT methods returning that type (e.g. WritableDirProvider.Find).
     /// </summary>
-    public static readonly Type ResPathEnumerableType = typeof(IEnumerable<>).MakeGenericType(ResPathType);
+    public static Type ResPathEnumerableType => typeof(IEnumerable<>).MakeGenericType(ResPathType);
 
     public static object Construct(string path)
         => ResPathConstructor.Invoke([path]);

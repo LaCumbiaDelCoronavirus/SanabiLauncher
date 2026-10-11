@@ -1,5 +1,7 @@
 using HarmonyLib;
+using Sanabi.Framework.Game.Managers;
 using Sanabi.Framework.Data;
+using Sanabi.Framework.Misc;
 using Sanabi.Framework.Patching;
 
 namespace Sanabi.Framework.Game.Patches;
@@ -22,9 +24,15 @@ public static class RceTripwirePatch
         if (!SanabiConfig.ProcessConfig.LoadInternalMods)
             return;
 
+        if (!ReflectionManager.TryGetTypeByQualifiedName("Robust.Client.Console.ClientConsoleHost", out var consoleHostType) ||
+            PatchHelpers.GetMethod(consoleHostType, "RemoteExecuteCommand") is not { } remoteExecuteCommand)
+        {
+            SanabiLogger.LogWarn("RceTripwirePatch: couldn't resolve ClientConsoleHost.RemoteExecuteCommand, skipping patch!");
+            return;
+        }
+
         PatchHelpers.PatchMethod(
-            "Robust.Client.Console.ClientConsoleHost",
-            "RemoteExecuteCommand",
+            remoteExecuteCommand,
             Prefix,
             HarmonyPatchType.Prefix
         );

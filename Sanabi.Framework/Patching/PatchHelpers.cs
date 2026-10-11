@@ -38,7 +38,7 @@ public static partial class PatchHelpers
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static dynamic GetConstructorAndMakeInstance(string fullyQualifiedTypeName, Type[] parameterTypes, object?[]? parameters)
     {
-        var type = ReflectionManager.GetTypeByQualifiedName(fullyQualifiedTypeName);
+        var type = ReflectionManager.GetTypeByQualifiedName(fullyQualifiedTypeName, except: true);
         return GetConstructorAndMakeInstance(type, parameterTypes, parameters);
     }
 
@@ -213,7 +213,20 @@ public static partial class PatchHelpers
         HarmonyPatchType patchType,
         Type[]? targetMethodParameters = null)
     {
-        var targetMethod = targetClass.GetConstructor(targetMethodParameters ?? []) ??
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+        var targetMethod = targetClass.GetConstructor(flags, targetMethodParameters ?? []);
+
+        // No explicit parameters and no parameterless constructor; fall back to the only constructor
+        if (targetMethod == null &&
+            targetMethodParameters == null)
+        {
+            var constructors = targetClass.GetConstructors(flags);
+            if (constructors.Length == 1)
+                targetMethod = constructors[0];
+        }
+
+        if (targetMethod == null)
             throw new ArgumentException($"No constructor for type {targetClass} matches the given arguments!");
 
         TryPatchMethod(targetMethod, patchDelegate.Method, patchType);
@@ -237,7 +250,7 @@ public static partial class PatchHelpers
         Type[]? targetMethodParameters = null)
     {
         PatchMethod(
-            ReflectionManager.GetTypeByQualifiedName(targetQualifiedTypeName),
+            ReflectionManager.GetTypeByQualifiedName(targetQualifiedTypeName, except: true),
             targetMethodName,
             patchDelegate,
             patchType,

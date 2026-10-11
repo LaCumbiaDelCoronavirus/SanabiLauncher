@@ -21,7 +21,10 @@ public static class HwidPatch
             return;
 
         if (!ReflectionManager.TryGetTypeByQualifiedName("Robust.Client.HWId.BasicHWId", out var hwidType))
-            throw new InvalidOperationException("Couldn't resolve HWId implementation!");
+        {
+            SanabiLogger.LogWarn("HwidPatch: couldn't resolve HWId implementation, skipping patch!");
+            return;
+        }
 
         var hwidByteLength = (int?)PatchHelpers.GetConstantFieldValue(hwidType, "LengthHwid") ?? 32;
 

@@ -21,8 +21,9 @@ public static class UserDataPatch
 
     public static bool Enabled => SanabiConfig.ProcessConfig.RunUserDataPatch;
 
-    private static readonly Type WdpType = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.WritableDirProvider", except: true);
-    private static readonly MethodInfo WdpGetFullPath = PatchHelpers.GetMethod(WdpType, "GetFullPath")!;
+    // Resolved in Patch(), after the Enabled check
+    private static Type WdpType = null!;
+    private static MethodInfo WdpGetFullPath = null!;
 
     private static PropertyInfo ResManUserData = null!;
 
@@ -32,8 +33,18 @@ public static class UserDataPatch
         if (!Enabled)
             return;
 
-        var resMan = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.ResourceManager", except: true);
-        ResManUserData = resMan.GetProperty("UserData")!;
+        if (!ReflectionManager.TryGetTypeByQualifiedName("Robust.Shared.ContentPack.WritableDirProvider", out var wdpType) ||
+            !ReflectionManager.TryGetTypeByQualifiedName("Robust.Shared.ContentPack.ResourceManager", out var resMan) ||
+            PatchHelpers.GetMethod(wdpType, "GetFullPath") is not { } wdpGetFullPath ||
+            resMan.GetProperty("UserData") is not { } resManUserData)
+        {
+            SanabiLogger.LogWarn("UserDataPatch: couldn't resolve engine types/members, skipping patch!");
+            return;
+        }
+
+        WdpType = wdpType;
+        WdpGetFullPath = wdpGetFullPath;
+        ResManUserData = resManUserData;
 
         var resourceManagerInitialize = PatchHelpers.ResolveMethod(
             resMan, "Initialize");

@@ -53,7 +53,8 @@ internal static class Program
         if (args.Length == 1)
         {
             // Check if this is a valid Uri, since that indicates re-invocation.
-            if (Uri.TryCreate(args[0], UriKind.Absolute, out var result))
+            if (Uri.TryCreate(args[0], UriKind.Absolute, out var result)
+                && (result.Scheme == UriHelper.SchemeSs14 || result.Scheme == UriHelper.SchemeSs14s))
             {
                 commands = new string[]
                     { LauncherCommands.BlankReasonCommand, LauncherCommands.ConstructConnectCommand(result) };

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Sanabi.Framework.Data;
 using SS14.Launcher.Models.Logins;
 using SS14.Launcher.Utility;
@@ -38,7 +39,7 @@ public static class SanabiAuthManager
     {
         foreach (var activeServer in _activeServers)
         {
-            if (activeServer.UrlSet.GetMostSuccessfulUrl().Contains(evaluatedAuthUrl))
+            if (!activeServer.UrlSet.Urls.Contains(EnsureAuthStringEndsInPath(evaluatedAuthUrl)))
                 continue;
 
             authServerInfo = activeServer;

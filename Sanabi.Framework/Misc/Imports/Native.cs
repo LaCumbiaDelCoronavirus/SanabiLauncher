@@ -16,23 +16,3 @@ public static partial class NativeWin
         return handle;
     }
 }
-
-/// <summary>
-///     TODO: Test
-/// </summary>
-public static partial class NativeLinux
-{
-    public const int RTLD_NOLOAD = 4;
-
-    [LibraryImport("libdl.so.2", StringMarshalling = StringMarshalling.Utf8)]
-    internal static partial nint dlopen(string? fileName, int flags);
-
-    public static nint? DlopenOrNullIfZero(string? fileName, int flags)
-    {
-        var handle = dlopen(fileName, flags);
-        if (handle == nint.Zero)
-            return null;
-
-        return handle;
-    }
-}

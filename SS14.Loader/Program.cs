@@ -106,7 +106,7 @@ internal class Program
                 crashStage = "harmony and engine-patch initialisation";
                 HarmonyManager.Initialise();
 
-                var modloader = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.ModLoader");
+                var modloader = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.ModLoader", except: true);
                 PatchHelpers.PatchPrefixFalse(modloader.GetMethod("SetUseLoadContext")!);
 
                 // Hide assemblies
