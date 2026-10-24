@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -16,9 +17,10 @@ public static class AssemblyHidingManager
 {
     /// <summary>
     ///     Assembly names hidden from view.
-    ///         Bool is whether to match exact name (false) or any string that contains the name (true).
+    ///         Bool is whether to match exact name (true) or any string that contains the name (false).
+    ///         Concurrent because hooks may read this from any thread while the game hides/unhides assemblies.
     /// </summary>
-    private static readonly Dictionary<string, bool> _hiddenAssemblies = [];
+    private static readonly ConcurrentDictionary<string, bool> _hiddenAssemblies = new();
 
     /// <summary>
     ///     Callsites that will be treated as if theyre in a hidden assembly.
@@ -47,6 +49,14 @@ public static class AssemblyHidingManager
     private static readonly string[] _contentNamespaces = ["Robust", "Content", "OpenDreamShared"];
     private static readonly string[] _engineNamespaces = ["Robust.Client", "Robust.Shared", "System.Private.CoreLib"];
 
+    /// <summary>
+    ///     Type name the sandbox uses for dynamically loaded assemblies; these are never reported to callers.
+    /// </summary>
+    private const string HiddenLoadContextName = "Assembly.Load(byte[], ...)";
+
+    private static readonly Lock _patchLock = new();
+    private static bool _detectionVectorsPatched;
+
     public static void HideBasicAssemblies()
     {
         HideAssembly("Harmony", exact: false);
@@ -60,13 +70,14 @@ public static class AssemblyHidingManager
 
     /// <summary>
     ///     Hides the assemblies whose <see cref="Assembly.Name"/>
-    ///         matches the given string.
+    ///         matches the given string. Calling again with the same identifier updates its match mode.
     /// </summary>
-    /// <param name="exact">If false, then only hides assemblies whose name is exactly this id. Otherwise, hides those whose name contains this id.</param>
+    /// <param name="exact">If true, then only hides assemblies whose name is exactly this id. Otherwise, hides those whose name contains this id.</param>
+    /// <exception cref="ArgumentException">The identifier is empty. An empty non-exact identifier would match, and hide, every assembly.</exception>
     public static void HideAssembly(string identifier, bool exact = false)
     {
-        if (_hiddenAssemblies.ContainsKey(identifier))
-            return;
+        if (string.IsNullOrWhiteSpace(identifier))
+            throw new ArgumentException("Assembly identifier must not be empty.", nameof(identifier));
 
         _hiddenAssemblies[identifier] = exact;
     }
@@ -76,7 +87,10 @@ public static class AssemblyHidingManager
     /// </summary>
     public static void UnhideAssembly(string identifier)
     {
-        _hiddenAssemblies.Remove(identifier);
+        if (string.IsNullOrEmpty(identifier))
+            return;
+
+        _hiddenAssemblies.TryRemove(identifier, out _);
     }
 
     /// <summary>
@@ -84,57 +98,80 @@ public static class AssemblyHidingManager
     /// </summary>
     public static void HideAssembly(Assembly assembly, bool exact = false)
     {
-        HideAssembly(assembly.GetName().Name ?? "", exact: exact);
+        HideAssembly(GetAssemblyName(assembly), exact: exact);
     }
 
     public static void PatchDetectionVectors()
     {
-        MethodInfo?[] methods = [
-            typeof(AppDomain).GetMethod(nameof(AppDomain.GetAssemblies)), // Assembly[]
-            typeof(AssemblyLoadContext).GetProperty("Assemblies")?.GetGetMethod(), // IEnumerable<Assembly>
-            typeof(AssemblyLoadContext).GetProperty("All")?.GetGetMethod(), // IEnumerable<AssemblyLoadContext>
-            typeof(Assembly).GetMethod(nameof(Assembly.GetTypes)), // Type[]
-            typeof(Assembly).GetMethod(nameof(Assembly.GetType), [typeof(string)]), //Type
-            typeof(Assembly).GetProperty("DefinedTypes")?.GetGetMethod(), // IEnumerable<TypeInfo>
-            Assembly.GetExecutingAssembly().GetType().GetMethod(nameof(Assembly.GetReferencedAssemblies)) // AssemblyName[]
-        ];
+        lock (_patchLock)
+        {
+            // Harmony would apply each postfix twice if this were called again, so only patch once.
+            if (_detectionVectorsPatched)
+                return;
 
-        var patchMethod = PatchHelpers.GetMethod(DetectionVectorPatcher);
-        foreach (var method in methods)
-            PatchHelpers.PatchMethod(
-                targetMethod: method,
-                patchMethod: patchMethod,
-                HarmonyPatchType.Postfix
-            );
+            MethodInfo?[] methods = [
+                typeof(AppDomain).GetMethod(nameof(AppDomain.GetAssemblies)), // Assembly[]
+                typeof(AssemblyLoadContext).GetProperty("Assemblies")?.GetGetMethod(), // IEnumerable<Assembly>
+                typeof(AssemblyLoadContext).GetProperty("All")?.GetGetMethod(), // IEnumerable<AssemblyLoadContext>
+                typeof(Assembly).GetMethod(nameof(Assembly.GetTypes)), // Type[]
+                typeof(Assembly).GetMethod(nameof(Assembly.GetType), [typeof(string)]), //Type
+                typeof(Assembly).GetProperty("DefinedTypes")?.GetGetMethod(), // IEnumerable<TypeInfo>
+                Assembly.GetExecutingAssembly().GetType().GetMethod(nameof(Assembly.GetReferencedAssemblies)) // AssemblyName[]
+            ];
 
-        //Type (case-sens options, throwonerror options, the other other GetType uses this)
-        PatchHelpers.PatchMethod(
-            targetMethod: typeof(Assembly).GetMethod(nameof(Assembly.GetType), [typeof(string), typeof(bool), typeof(bool)]),
-            patchMethod: PatchHelpers.GetMethod(GetTypeCaseSensitiveThrowOnErrorPatch),
-            HarmonyPatchType.Postfix
-        );
+            var patchMethod = PatchHelpers.GetMethod(DetectionVectorPatcher);
+            foreach (var method in methods)
+            {
+                // A missing target means the runtime differs from what we expect. Skip it rather than failing startup.
+                if (method is null)
+                {
+                    SanabiLogger.LogWarn("Detection vector method not found on this runtime; skipping.");
+                    continue;
+                }
+
+                PatchHelpers.PatchMethod(
+                    targetMethod: method,
+                    patchMethod: patchMethod,
+                    HarmonyPatchType.Postfix
+                );
+            }
+
+            //Type (case-sens options, throwonerror options, the other other GetType uses this)
+            var getTypeFull = typeof(Assembly).GetMethod(nameof(Assembly.GetType), [typeof(string), typeof(bool), typeof(bool)]);
+            if (getTypeFull is null)
+                SanabiLogger.LogWarn("Assembly.GetType(string, bool, bool) not found on this runtime; skipping.");
+            else
+                PatchHelpers.PatchMethod(
+                    targetMethod: getTypeFull,
+                    patchMethod: PatchHelpers.GetMethod(GetTypeCaseSensitiveThrowOnErrorPatch),
+                    HarmonyPatchType.Postfix
+                );
+
+            _detectionVectorsPatched = true;
+        }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void GetTypeCaseSensitiveThrowOnErrorPatch(ref Type? __result, ref string name, ref bool throwOnError, ref bool ignoreCase)
     {
-        if (__result is not { } ||
+        if (__result is null ||
             !ShouldHideType(__result) ||
             IsCallsiteThroughHiddenAssembly(2)) // ignore callsites of IsCallsiteThroughHiddenAssembly and this
             return;
 
+        // Mimic the real failure for a type that does not exist.
         if (throwOnError)
-        {
-            // Mimic actual throw
-            Assembly.GetExecutingAssembly().GetType("", throwOnError, ignoreCase);
             throw new TypeLoadException($"Type {name} could not be found");
-        }
-        else
-            __result = null;
+
+        __result = null;
     }
 
+    /// <returns>Whether the given assembly name matches any currently hidden entry.</returns>
     public static bool ShouldHideAssembly(string ourAssemblyName)
     {
+        if (string.IsNullOrEmpty(ourAssemblyName))
+            return false;
+
         foreach (var (hiddenAssemblyName, exact) in _hiddenAssemblies)
         {
             if (exact)
@@ -144,7 +181,7 @@ public static class AssemblyHidingManager
             }
             else
             {
-                if (ourAssemblyName.Contains(hiddenAssemblyName))
+                if (ourAssemblyName.Contains(hiddenAssemblyName, StringComparison.Ordinal))
                     return true;
             }
         }
@@ -152,21 +189,30 @@ public static class AssemblyHidingManager
         return false;
     }
 
+    private static string GetAssemblyName(Assembly assembly) => assembly.GetName().Name ?? "";
+
     private static AssemblyName[] HideHiddenAssemblyNames(AssemblyName[] names)
         => [.. names.Where(assemblyName => !ShouldHideAssembly(assemblyName.Name ?? ""))];
 
-    private static IEnumerable<Type> HideHiddenTypes(Type[] unhiddenTypes)
+    private static Type[] HideHiddenTypes(Type[] unhiddenTypes)
+        => [.. unhiddenTypes.Where(type => !ShouldHideType(type))];
+
+    private static bool ShouldHideType(Type type) => ShouldHideAssembly(GetAssemblyName(type.Assembly));
+
+    /// <summary>
+    ///     Whether an assembly belongs to the engine (or is part of the runtime itself).
+    /// </summary>
+    private static bool IsEngineAssembly(string assemblyName)
     {
-        foreach (var type in unhiddenTypes)
+        foreach (var engineNamespace in _engineNamespaces)
         {
-            if (ShouldHideType(type))
-                continue;
-
-            yield return type;
+            if (assemblyName == engineNamespace ||
+                assemblyName.StartsWith(engineNamespace + ".", StringComparison.Ordinal))
+                return true;
         }
-    }
 
-    private static bool ShouldHideType(Type type) => ShouldHideAssembly(type.Assembly.GetName().Name ?? "");
+        return false;
+    }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void DetectionVectorPatcher(ref object __result)
@@ -175,22 +221,24 @@ public static class AssemblyHidingManager
         if (IsCallsiteThroughHiddenAssembly(2)) // ignore callsites of IsCallsiteThroughHiddenAssembly and this
             return;
 
-        if (__result == null)
+        if (__result is null)
             return;
 
+        // Results are materialized with ToArray so that filtering runs once, now, instead of lazily
+        // against whatever the hidden list looks like when the caller finally enumerates.
         switch (__result)
         {
             case Assembly[] originalAssemblies:
-                __result = originalAssemblies.Where(assembly => !ShouldHideAssembly(assembly.GetName().Name ?? "")).ToArray();
+                __result = originalAssemblies.Where(assembly => !ShouldHideAssembly(GetAssemblyName(assembly))).ToArray();
                 break;
             case IEnumerable<Assembly> assemblyEnumerable:
-                __result = assemblyEnumerable.Where(assembly => !ShouldHideAssembly(assembly.GetName().Name ?? ""));
+                __result = assemblyEnumerable.Where(assembly => !ShouldHideAssembly(GetAssemblyName(assembly))).ToArray();
                 break;
             case IEnumerable<AssemblyLoadContext> assemblyLoadContextEnumerable:
-                __result = assemblyLoadContextEnumerable.Where(context => context.Name != "Assembly.Load(byte[], ...)");
+                __result = assemblyLoadContextEnumerable.Where(context => context.Name != HiddenLoadContextName).ToArray();
                 break;
             case Type[] types:
-                __result = HideHiddenTypes(types).ToArray();
+                __result = HideHiddenTypes(types);
                 break;
             case Type type:
                 if (ShouldHideType(type))
@@ -198,17 +246,20 @@ public static class AssemblyHidingManager
 
                 break;
             case IEnumerable<TypeInfo> assemblyTypeInfos:
-                __result = assemblyTypeInfos.Where(typeInfo => !ShouldHideAssembly(typeInfo.Assembly.GetName().Name ?? ""));
+                __result = assemblyTypeInfos.Where(typeInfo => !ShouldHideType(typeInfo)).ToArray();
                 break;
             case AssemblyName[] assemblyNames:
                 __result = HideHiddenAssemblyNames(assemblyNames);
                 break;
             default:
-                throw new InvalidOperationException($"Bad type: {__result.GetType()}");
+                // Throwing here would surface inside arbitrary game code. Leave the result alone instead.
+                SanabiLogger.LogWarn($"Unexpected detection vector result type {__result.GetType()}; returning it unfiltered.");
+                break;
         }
     }
 
     /// <returns>Whether any call-site of this stack is in a currently hidden assembly, except for the first <paramref name="ignoredFirst"/> frames.</returns>
+    [MethodImpl(MethodImplOptions.NoInlining)] // Keeps the frame count that ignoredFirst relies on stable.
     public static bool IsCallsiteThroughHiddenAssembly(int ignoredFirst = 2)
     {
         var stackTrace = new StackTrace();
@@ -233,8 +284,8 @@ public static class AssemblyHidingManager
             if (EngineOverridenCallsites.Contains(methodInfo))
                 onlyInEngine = true;
 
-            var assemblyName = declaringType.Assembly.GetName().Name ?? "";
-            if (onlyInEngine && !_engineNamespaces.Contains(assemblyName))
+            var assemblyName = GetAssemblyName(declaringType.Assembly);
+            if (onlyInEngine && !IsEngineAssembly(assemblyName))
             {
                 SanabiLogger.LogWarn($"CUR-LEFTUS: {assemblyName}");
                 wasOutsideEngine = true;
@@ -253,6 +304,9 @@ public static class AssemblyHidingManager
     /// <returns>Whether any call-site of this stack is in the given assembly.</returns>
     public static bool IsCallsiteThroughAssembly(string assemblyName, bool exact = false)
     {
+        if (string.IsNullOrEmpty(assemblyName))
+            return false;
+
         var stackTrace = new StackTrace();
         var frames = stackTrace.GetFrames();
 
@@ -262,10 +316,10 @@ public static class AssemblyHidingManager
                 methodInfo.DeclaringType is not { } declaringType)
                 continue;
 
-            var otherAssemblyName = declaringType.Assembly.GetName().Name ?? "";
+            var otherAssemblyName = GetAssemblyName(declaringType.Assembly);
             if (exact && otherAssemblyName == assemblyName)
                 return true;
-            else if (!exact && otherAssemblyName.Contains(assemblyName))
+            else if (!exact && otherAssemblyName.Contains(assemblyName, StringComparison.Ordinal))
                 return true;
         }
 
@@ -281,14 +335,12 @@ public static class AssemblyHidingManager
         foreach (var frame in frames)
         {
             var method = frame.GetMethod();
-            if (method == null ||
-                method.DeclaringType?.Namespace is not { } methodNamespace ||
-                methodNamespace.Length == 0)
+            if (method?.DeclaringType?.Namespace is not { Length: > 0 } methodNamespace)
                 continue;
 
             foreach (var badNamespace in _contentNamespaces)
             {
-                if (methodNamespace.StartsWith(badNamespace))
+                if (methodNamespace.StartsWith(badNamespace, StringComparison.Ordinal))
                     return true;
             }
         }
