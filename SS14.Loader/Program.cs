@@ -1,32 +1,56 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
-using System.Threading;
 using NSec.Cryptography;
 using Robust.LoaderApi;
-using Sanabi.Framework.Data;
-using Sanabi.Framework.Game.Managers;
-using Sanabi.Framework.Game.Patches;
-using Sanabi.Framework.Patching;
 
 namespace SS14.Loader;
 
 internal class Program
 {
     private readonly string[] _engineArgs;
+    private readonly string _robustPath;
     private const string RobustAssemblyName = "Robust.Client";
 
     private readonly IFileApi _fileApi;
 
+    // Sanabi is invoked purely by reflection so this assembly keeps no compile-time reference to
+    // Sanabi.Framework — nothing names the fork in SS14.Loader.dll's metadata. See Sanabi.Framework's
+    // SanabiLoaderEntry for the methods called here.
+    private static readonly Lazy<Type> SanabiEntryType = new(() =>
+    {
+        var dir = Path.GetDirectoryName(typeof(Program).Assembly.Location)!;
+        var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.Combine(dir, "Sanabi.Framework.dll"));
+        return assembly.GetType("Sanabi.Framework.Bootstrap.SanabiLoaderEntry", throwOnError: true)!;
+    });
+
+    private static IDisposable InstallSanabiHooks(Assembly clientAssembly, Assembly sharedAssembly, string robustPath)
+        => (IDisposable)SanabiEntryType.Value
+            .GetMethod("InstallEngineHooks")!
+            .Invoke(null, [clientAssembly, sharedAssembly, robustPath])!;
+
+    private static void SanabiReportCrash(string? stage, Exception ex)
+    {
+        // Mirror Sanabi's best-effort contract: never let crash reporting mask the original crash.
+        try
+        {
+            SanabiEntryType.Value.GetMethod("ReportCrash")!.Invoke(null, [stage, ex]);
+        }
+        catch (Exception reportEx)
+        {
+            Console.WriteLine($"Failed to report crash to launcher: {reportEx}");
+        }
+    }
+
     private Program(string robustPath, string[] engineArgs)
     {
         _engineArgs = engineArgs;
+        _robustPath = robustPath;
         var zipArchive = new ZipArchive(File.OpenRead(robustPath), ZipArchiveMode.Read);
 
         AssemblyLoadContext.Default.Resolving += LoadContextOnResolving;
@@ -68,66 +92,14 @@ internal class Program
         if (!TryGetLoader(clientAssembly, out var loader))
             return false;
 
-        string? crashStage = null;
-        void ContentRunLevelAct()
-        {
-            if (!SanabiConfig.ProcessConfig.PatchRunLevel.HasFlag(PatchRunLevel.Content))
-                return;
-
-            crashStage = "content runlevel";
-            PatchEntryAttributeManager.ProcessRunLevel(PatchRunLevel.Content);
-            crashStage = null;
-        }
-
+        IDisposable sanabiHandle;
         try
         {
-            AssemblyManager.Assemblies["Robust.Client"] = clientAssembly;
-            AssemblyManager.Assemblies["Robust.Shared"] = sharedEngineAssembly;
-
-            // wait until properly connected
-
-            crashStage = "sanabiconfig struct receival";
-            SanabiConfig.ProcessConfig = IpcManager.RunStructPipeClient<SanabiConfig>(IpcManager.SanabiIpcName);
-            crashStage = null;
-
-            if (SanabiConfig.ProcessConfig.WaitForDebugger)
-            {
-                crashStage = "debug attach";
-                Console.WriteLine("Waiting for debugger to attach...");
-                while (!Debugger.IsAttached)
-                    Thread.Sleep(100);
-
-                Console.WriteLine("Debugger attached!");
-            }
-
-            if (SanabiConfig.ProcessConfig.PatchRunLevel.HasFlag(PatchRunLevel.Engine) &&
-                AssemblyManager.TryGetAssembly("Robust.Client", out _))
-            {
-                crashStage = "harmony and engine-patch initialisation";
-                HarmonyManager.Initialise();
-
-                var modloader = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.ModLoader", except: true);
-                PatchHelpers.PatchPrefixFalse(modloader.GetMethod("SetUseLoadContext")!);
-
-                // Hide assemblies
-                AssemblyHidingManager.HideBasicAssemblies();
-                AssemblyHidingManager.PatchDetectionVectors();
-
-                crashStage = "engine runlevel";
-                PatchEntryAttributeManager.ProcessRunLevel(PatchRunLevel.Engine);
-                crashStage = null;
-                AssemblyManager.OnAssembliesFulfilled += ContentRunLevelAct;
-
-                // Idk why this is after everything and it really shouldnt be but shit breaks if its not after everything. HEEELP
-                AssemblyManager.QueryAssemblies();
-                AssemblyManager.Subscribe();
-            }
-
-            crashStage = null;
+            sanabiHandle = InstallSanabiHooks(clientAssembly, sharedEngineAssembly, _robustPath);
         }
         catch (Exception ex)
         {
-            ReportCrash(ex, stage: crashStage);
+            SanabiReportCrash("engine hook installation", ex);
             throw;
         }
 
@@ -180,36 +152,17 @@ internal class Program
         }
         catch (Exception ex)
         {
-            ReportCrash(ex, stage: crashStage);
+            SanabiReportCrash("loader main", ex);
             throw;
         }
         finally
         {
-            AssemblyManager.Unsubscribe();
-            AssemblyManager.OnAssembliesFulfilled -= ContentRunLevelAct;
+            sanabiHandle.Dispose();
 
             contentApi?.Dispose();
             overlayApi?.Dispose();
         }
         return true;
-    }
-
-    /// <summary>
-    ///     Best-effort delivery of an unhandled game exception to the launcher, if it is open
-    ///         and listening. Never throws; a failure here must not mask the original crash.
-    /// </summary>
-    private static void ReportCrash(Exception ex, string? stage = null)
-    {
-        try
-        {
-            var report = $"Crash at {DateTime.Now:yyyy-MM-dd HH:mm:ss}{(stage is { } ? $" during stage '{stage}'" : "")}\n\n{ex}";
-            Console.WriteLine(report);
-            IpcManager.RunStringPipeClient(IpcManager.SanabiCrashIpcName, report);
-        }
-        catch (Exception reportEx)
-        {
-            Console.WriteLine($"Failed to report crash to launcher: {reportEx}");
-        }
     }
 
     private static bool TryGetLoader(Assembly clientAssembly, [NotNullWhen(true)] out ILoaderEntryPoint? loader)
@@ -276,7 +229,6 @@ internal class Program
         Console.WriteLine($"Starting loader");
 
         var robustPath = args[0];
-        LazySanabiConfig.RobustClientExecutable = robustPath;
         var sig = Convert.FromHexString(args[1]);
         var keyPath = args[2];
 

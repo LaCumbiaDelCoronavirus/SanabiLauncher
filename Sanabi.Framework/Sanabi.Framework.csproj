@@ -19,4 +19,14 @@
         <!-- Required for BetterFullscreenPatch -->
         <!-- <PackageReference Include="SpaceWizards.Sdl" PrivateAssets="compile" /> -->
     </ItemGroup>
+    <!--
+    Release builds ship this assembly into the game process. Map the absolute build paths out of the PDB so
+    exception stack traces don't reveal the developer's directory layout.
+    -->
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <PathMap>$(MSBuildProjectDirectory)=Sanabi.Framework</PathMap>
+        <!-- SourceLink would embed this machine's checkout path and remote in the PDB. -->
+        <EnableSourceLink>false</EnableSourceLink>
+    </PropertyGroup>
+
 </Project>

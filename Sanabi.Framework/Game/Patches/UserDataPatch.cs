@@ -28,6 +28,7 @@ public static class UserDataPatch
     private static PropertyInfo ResManUserData = null!;
 
     [PatchEntry(PatchRunLevel.Engine)]
+    [StackTraceHidden]
     public static void Patch()
     {
         if (!Enabled)
@@ -121,6 +122,7 @@ public static class UserDataPatch
         );
     }
 
+    [StackTraceHidden]
     private static void ResManInitializePostfix(ref dynamic __instance, ref string? userData /* param */)
     {
         // if userdata is already null for irrelevant reasons, let it do its own thing

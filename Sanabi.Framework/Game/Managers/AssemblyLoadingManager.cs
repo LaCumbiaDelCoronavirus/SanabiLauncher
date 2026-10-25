@@ -22,10 +22,28 @@ public static partial class AssemblyLoadingManager
     public static int TotalExternalModCount = 0;
     private static readonly Queue<ILoadedModData> _dataPendingAssemblyLoad = new(); // Important to be Queue rather than Stack to preserve order of assemblies
     private static readonly Queue<object> _loadersPendingMount = new(); // Important to be Queue rather than Stack to preserve order of assemblies
-    private static MethodInfo _modInitMethod = default!;
     private static MethodInfo _iResourceManagerAddRootsMethod = default!; // has to be interface or else it cant get called on dynamic or whatever IDFK
     private static ConstructorInfo _dirLoaderConstructorData = default!;
     private static Type _gameSharedType = default!;
+
+    // Detached mod-loading: we replicate the one load-bearing step of the engine's BaseModLoader.InitMod
+    // (IReflectionManager.LoadAssemblies, for type discovery) and drive the GameShared lifecycle ourselves,
+    // WITHOUT adding a ModInfo to the engine's Mods list. That way our mods never appear in
+    // BaseModLoader.LoadedModules in the first place — no after-the-fact scrubbing needed.
+    private static MethodInfo _loadAssembliesMethod = default!;      // IReflectionManager.LoadAssemblies(IEnumerable<Assembly>)
+    private static FieldInfo _modLoaderReflectionManagerField = default!; // BaseModLoader.ReflectionManager
+    private static FieldInfo _modLoaderDependenciesField = default!;      // BaseModLoader._dependencies
+    private static FieldInfo _modLoaderTestingCallbacksField = default!;  // BaseModLoader._testingCallbacks
+
+    // GameShared members, resolved once (the engine type isn't referenceable at compile time).
+    private static MethodInfo _gsPreInit = default!;
+    private static MethodInfo _gsInit = default!;
+    private static MethodInfo _gsPostInit = default!;
+    private static MethodInfo _gsUpdate = default!;        // Update(ModUpdateLevel, FrameEventArgs)
+    private static MethodInfo _gsShutdown = default!;
+    private static MethodInfo _gsDispose = default!;
+    private static MethodInfo _gsSetTestingCallbacks = default!;
+    private static PropertyInfo _gsDependenciesProperty = default!;
 
     /// <summary>
     ///     This is also used to identify SanabiLauncher IContentRoots.
@@ -45,7 +63,24 @@ public static partial class AssemblyLoadingManager
         var internalModLoader = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.ModLoader", except: true);
         var baseModLoader = ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.BaseModLoader", except: true);
 
-        _modInitMethod = PatchHelpers.GetMethod(internalModLoader, "InitMod", except: true)!;
+        // Engine bits we read off the live ModLoader instance to replicate InitMod's load-bearing effects.
+        _loadAssembliesMethod = AccessTools.Method(
+            "Robust.Shared.Reflection.IReflectionManager:LoadAssemblies",
+            [typeof(IEnumerable<Assembly>)]);
+        _modLoaderReflectionManagerField = AccessTools.Field(baseModLoader, "ReflectionManager");
+        _modLoaderDependenciesField = AccessTools.Field(baseModLoader, "_dependencies");
+        _modLoaderTestingCallbacksField = AccessTools.Field(baseModLoader, "_testingCallbacks");
+
+        // GameShared lifecycle members (PreInit/Init/PostInit/Update/Shutdown/Dispose + Dependencies/callbacks).
+        _gsPreInit = PatchHelpers.GetMethod(_gameSharedType, "PreInit", except: true)!;
+        _gsInit = PatchHelpers.GetMethod(_gameSharedType, "Init", except: true)!;
+        _gsPostInit = PatchHelpers.GetMethod(_gameSharedType, "PostInit", except: true)!;
+        _gsUpdate = PatchHelpers.GetMethod(_gameSharedType, "Update", except: true)!;
+        _gsShutdown = PatchHelpers.GetMethod(_gameSharedType, "Shutdown", except: true)!;
+        _gsDispose = PatchHelpers.GetMethod(_gameSharedType, "Dispose", [], except: true)!;
+        _gsSetTestingCallbacks = PatchHelpers.GetMethod(_gameSharedType, "SetTestingCallbacks", except: true)!;
+        _gsDependenciesProperty = _gameSharedType.GetProperty("Dependencies", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("Couldn't resolve GameShared.Dependencies!");
 
         _iResourceManagerAddRootsMethod = AccessTools.Method("Robust.Shared.ContentPack.IResourceManager:AddRoot");
 
@@ -77,13 +112,12 @@ public static partial class AssemblyLoadingManager
             HarmonyPatchType.Postfix
         );
 
-        // not _modInitMethod because this is implemented on the base
-        PatchHelpers.PatchMethod(
-            ReflectionManager.GetTypeByQualifiedName("Robust.Shared.ContentPack.BaseModLoader", except: true),
-            "InitMod",
-            ModInitTranspiler,
-            HarmonyPatchType.Transpiler
-        );
+        // Drive our detached GameShared entry points through the engine's own run-level broadcasts, so they get
+        // engine-identical PreInit/Init/PostInit/Update/Shutdown timing without ever being in the engine Mods list.
+        // (These are declared + concrete on BaseModLoader.)
+        PatchHelpers.PatchMethod(baseModLoader, "BroadcastRunLevel", BroadcastRunLevelPostfix, HarmonyPatchType.Postfix);
+        PatchHelpers.PatchMethod(baseModLoader, "BroadcastUpdate", BroadcastUpdatePostfix, HarmonyPatchType.Postfix);
+        PatchHelpers.PatchMethod(baseModLoader, "Shutdown", ShutdownPostfix, HarmonyPatchType.Postfix);
 
         PatchHelpers.PatchMethod(
             ReflectionManager.GetTypeByQualifiedName("Robust.Shared.GameObjects.EntitySystemManager", except: true),

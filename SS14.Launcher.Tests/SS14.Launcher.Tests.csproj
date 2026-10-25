@@ -14,6 +14,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SS14.Launcher\SS14.Launcher.csproj"/>
+
+    <!--
+    Build-only: StealthHarnessTest launches this as a subprocess (it applies process-wide Harmony patches that
+    must not run in this test host). ReferenceOutputAssembly=false builds it first without loading its types here.
+    -->
+    <ProjectReference Include="..\SS14.Launcher.StealthProbe\SS14.Launcher.StealthProbe.csproj" ReferenceOutputAssembly="false"/>
   </ItemGroup>
 
 </Project>

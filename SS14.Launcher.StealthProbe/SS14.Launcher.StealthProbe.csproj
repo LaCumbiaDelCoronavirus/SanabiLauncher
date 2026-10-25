@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="../Launcher.props" />
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <!--
+        The assembly name must NOT contain a hidden substring (Sanabi/Harmony/MonoMod) nor equal
+        SS14.Common/System.Reflection.Emit. If it did, AssemblyHidingManager would treat this harness as a
+        hidden caller, every detection-vector hook would hand back the REAL (unfiltered) result, and the
+        "is Sanabi hidden?" test would pass for the wrong reason. This is the fake game, not fork code.
+        -->
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../Sanabi.Framework/Sanabi.Framework.csproj" />
+        <ProjectReference Include="../SS14.Launcher.StealthProbe.FakeEngine/SS14.Launcher.StealthProbe.FakeEngine.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Lib.Harmony" />
+    </ItemGroup>
+
+</Project>

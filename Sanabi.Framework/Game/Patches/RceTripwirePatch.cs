@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using HarmonyLib;
 using Sanabi.Framework.Game.Managers;
 using Sanabi.Framework.Data;
@@ -19,6 +20,7 @@ public static class RceTripwirePatch
     public static readonly List<string> IgnoredCommands = ["observe", "joingame", "mapping", "toggleready", "suicide", "ghostroles", "deadmin", "readmin", "say", "whisper", "me", "ghost", "ooc", "looc", "adminremarks", "forcemap"];
 
     [PatchEntry(PatchRunLevel.Engine)]
+    [StackTraceHidden]
     public static void Patch()
     {
         if (!SanabiConfig.ProcessConfig.LoadInternalMods)
@@ -38,6 +40,7 @@ public static class RceTripwirePatch
         );
     }
 
+    [StackTraceHidden]
     private static bool Prefix(dynamic? session, string command)
     {
         if (session == null)

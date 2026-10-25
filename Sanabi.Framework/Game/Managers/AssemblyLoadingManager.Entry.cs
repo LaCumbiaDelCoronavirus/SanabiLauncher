@@ -1,6 +1,4 @@
 using System.Reflection;
-using System.Reflection.Emit;
-using HarmonyLib;
 using Sanabi.Framework.Misc;
 using Sanabi.Framework.Patching;
 using SS14.Launcher;
@@ -14,7 +12,13 @@ namespace Sanabi.Framework.Game.Managers;
 public static partial class AssemblyLoadingManager
 {
     private static readonly Queue<MethodInfo> _pendingEntSysManUpdateCallbacks = new();
-    private static bool _stopPretending = true;
+
+    /// <summary>
+    ///     GameShared entry-point instances of our loaded mods. We drive their lifecycle ourselves (see the
+    ///         BroadcastRunLevel/BroadcastUpdate/Shutdown postfixes) instead of registering them in the engine's
+    ///         Mods list, so our mods never surface in <c>BaseModLoader.LoadedModules</c>.
+    /// </summary>
+    private static readonly List<object> _detachedEntryPoints = new();
 
     /// <summary>
     ///     Invokes a static method and enters it. The method may
@@ -99,70 +103,47 @@ public static partial class AssemblyLoadingManager
         => (bitmap & (1L << index)) != 0;
     private static void ModLoaderPostfix(ref dynamic __instance)
     {
-        _stopPretending = false;
         while (_dataPendingAssemblyLoad.TryDequeue(out var modData))
         {
             if (modData.Assembly != null)
-                LoadModAssemblyIntoGame(ref __instance, modData);
+                LoadModAssemblyIntoGame((object)__instance, modData);
         }
-        _stopPretending = true;
     }
 
-    // Dont change signature
-    private static IEnumerable<Type> TransformEntryPoints(IEnumerable<Type> originalTypes, Assembly affectedAssembly)
+    // GameShared lifecycle for our detached mods: the engine's BroadcastRunLevel/Update/Shutdown only iterate
+    // its own Mods list (which our mods are deliberately not in), so we postfix those broadcasts and drive our
+    // entry points at the exact same phase. __args avoids referencing the engine's ModRunLevel/ModUpdateLevel.
+    private static void BroadcastRunLevelPostfix(object[] __args)
     {
-        if (_stopPretending)
-            return originalTypes;
-
-        var thisMethod = (MethodInfo)MethodBase.GetCurrentMethod()!;
-        if (AssemblyHidingManager.ShouldHideAssembly(affectedAssembly.GetName().FullName))
-            return affectedAssembly.GetTypes().Where(t => _gameSharedType.IsAssignableFrom(t));
-
-        return originalTypes;
-    }
-
-    /*
-        IL_006F: call       static System.Collections.Generic.IEnumerable`1<System.Type> System.Linq.Enumerable::Where(System.Collections.Generic.IEnumerable`1<System.Type> source, System.Func`2<System.Type, System.Boolean> predicate)
-        [INSERT] ldarg.15
-        [INSERT] call TransformEntryPoints
-        IL_0074: callvirt   abstract virtual System.Collections.Generic.IEnumerator`1<System.Type> System.Collections.Generic.IEnumerable`1<System.Type>::GetEnumerator()
-        IL_0079: stloc.1
-    */
-    private static IEnumerable<CodeInstruction> ModInitTranspiler(IEnumerable<CodeInstruction> instructionsEnum)
-    {
-        var instructions = new List<CodeInstruction>(instructionsEnum);
-
-        var whereMethod = typeof(Enumerable)
-            .GetMethods()
-            .First(m => m.Name == "Where" && m.GetParameters().Length == 2)
-            .MakeGenericMethod(typeof(Type));
-
-        var overrideMethod = ((Delegate)TransformEntryPoints).Method;
-
-        for (var index = 0; index < instructions.Count; index++)
+        var level = __args[0]?.ToString();
+        var lifecycle = level switch
         {
-            var instruction = instructions[index];
-            if (instruction.opcode != OpCodes.Call ||
-                !Equals(instruction.operand, whereMethod))
-                continue;
+            "PreInit" => _gsPreInit,
+            "Init" => _gsInit,
+            "PostInit" => _gsPostInit,
+            _ => null,
+        };
 
-            // i = ::Where(...), i+1 = ::GetEnumerator()
+        if (lifecycle is null)
+            return;
 
-            CodeInstruction[] addedInstr = [
-                // load first param: assembly
-                new CodeInstruction(OpCodes.Ldarg_1),
+        foreach (var entryPoint in _detachedEntryPoints)
+            lifecycle.Invoke(entryPoint, null);
+    }
 
-                // the enumerable is already on the stack from Where call before this
-                // now call our method which takes (Assembly, IEnumerable<Type>)
-                new CodeInstruction(OpCodes.Call, ((Delegate)TransformEntryPoints).Method)
-            ];
+    private static void BroadcastUpdatePostfix(object[] __args)
+    {
+        foreach (var entryPoint in _detachedEntryPoints)
+            _gsUpdate.Invoke(entryPoint, [__args[0], __args[1]]); // (ModUpdateLevel level, FrameEventArgs args)
+    }
 
-            // add after Where call
-            instructions.InsertRange(index + 1, addedInstr);
-            break;
+    private static void ShutdownPostfix()
+    {
+        foreach (var entryPoint in _detachedEntryPoints)
+        {
+            _gsShutdown.Invoke(entryPoint, null);
+            _gsDispose.Invoke(entryPoint, null);
         }
-
-        return instructions;
     }
 
     private static void EntSysManInitPostfix()
@@ -200,14 +181,40 @@ public static partial class AssemblyLoadingManager
         loggerForwardDelegateType?.SetValue(null, marseyLogDelegate);
     }
 
-    private static void LoadModAssemblyIntoGame(ref dynamic modLoader, ILoadedModData modData)
+    /// <summary>
+    ///     Loads a mod assembly into the game WITHOUT routing through the engine's <c>BaseModLoader.InitMod</c>
+    ///         (which would add it to the engine's Mods list and so to <c>LoadedModules</c>). We reproduce the
+    ///         one load-bearing effect — registering the assembly's types with the engine ReflectionManager —
+    ///         and drive the GameShared lifecycle ourselves via <see cref="_detachedEntryPoints"/>.
+    /// </summary>
+    /// <param name="modLoader">The live engine ModLoader instance (to read its ReflectionManager/dependencies).</param>
+    private static void LoadModAssemblyIntoGame(object modLoader, ILoadedModData modData)
     {
-        AssemblyHidingManager.HideAssembly(modData.Assembly!);
-        PortModMarseyLogger(modData.Assembly!);
+        var assembly = modData.Assembly!;
 
-        _modInitMethod.Invoke(modLoader, (Assembly[])[modData.Assembly!]);
+        AssemblyHidingManager.HideAssembly(assembly);
+        PortModMarseyLogger(assembly);
 
-        if (GetModAssemblyEntryType(modData.Assembly!) is { } modEntryType)
+        // 1. Register types with the engine so EntitySystems/Components/Prototypes/serializers get discovered.
+        //    This is the only engine step a mod genuinely needs; it does not touch the Mods/LoadedModules list.
+        var reflectionManager = _modLoaderReflectionManagerField.GetValue(modLoader);
+        _loadAssembliesMethod.Invoke(reflectionManager, [(IEnumerable<Assembly>)[assembly]]);
+
+        // 2. Discover + instantiate GameShared entry points ourselves (mirroring InitMod, minus Mods.Add).
+        //    We are a hidden-assembly caller, so GetTypes() returns the real, unfiltered type list here.
+        var dependencies = _modLoaderDependenciesField.GetValue(modLoader);
+        var testingCallbacks = _modLoaderTestingCallbacksField.GetValue(modLoader);
+        foreach (var entryType in assembly.GetTypes().Where(type => _gameSharedType.IsAssignableFrom(type)))
+        {
+            var entryPoint = Activator.CreateInstance(entryType)!;
+            _gsDependenciesProperty.SetValue(entryPoint, dependencies);
+            if (testingCallbacks != null)
+                _gsSetTestingCallbacks.Invoke(entryPoint, [testingCallbacks]);
+
+            _detachedEntryPoints.Add(entryPoint);
+        }
+
+        if (GetModAssemblyEntryType(assembly) is { } modEntryType)
         {
             if (modEntryType?.GetMethod("Entry", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public) is { } modEntryMethod)
                 Enter(modEntryMethod, async: false); // Non-async makes it possible to print logs properly

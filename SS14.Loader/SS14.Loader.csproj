@@ -5,6 +5,23 @@
     <OutputType>WinExe</OutputType>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!--
+    This assembly ships into the game process under the same name as upstream's SS14.Loader, so it must look
+    like a vanilla build to anything enumerating assemblies. Stamp the identity to match upstream's latest
+    release (space-wizards/SS14.Launcher), overriding Launcher.props's fork version (2.21.15).
+    Keep in sync with upstream's released <Version> (see the sync-note in Launcher.props).
+    -->
+    <Version>0.40.3</Version>
+    <FileVersion>0.40.3.0</FileVersion>
+    <InformationalVersion>0.40.3</InformationalVersion>
+  </PropertyGroup>
+
+  <!-- Scrub the dev checkout path out of the PDB / stack frames, exactly like Sanabi.Framework does, since
+       this assembly is NOT hidden and its frames/Location are visible to the game. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PathMap>$(MSBuildProjectDirectory)=SS14.Loader</PathMap>
+    <EnableSourceLink>false</EnableSourceLink>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('FreeBSD'))">

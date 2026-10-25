@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Sanabi.Framework.Game.Managers;
 using HarmonyLib;
 using Sanabi.Framework.Patching;
@@ -15,6 +16,7 @@ public static class HwidPatch
     private static byte[] SpoofedHwid = [];
 
     [PatchEntry(PatchRunLevel.Engine)]
+    [StackTraceHidden]
     public static void Patch()
     {
         if (!Enabled)
@@ -47,6 +49,7 @@ public static class HwidPatch
     }
 
     // Works for both legcay&modern hwid at time of writing
+    [StackTraceHidden]
     private static bool PrefixLegacyOrModern(ref dynamic __instance, ref dynamic __result)
     {
         __result = SpoofedHwid;

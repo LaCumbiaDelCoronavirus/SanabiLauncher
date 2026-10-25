@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using Sanabi.Framework.Game.Managers;
 using HarmonyLib;
@@ -14,6 +15,7 @@ namespace Sanabi.Framework.Game.Patches;
 public static class AssemblyLoadPatch
 {
     [PatchEntry(PatchRunLevel.Engine)]
+    [StackTraceHidden]
     public static void Patch()
     {
         PatchHelpers.PatchMethod(
@@ -24,6 +26,7 @@ public static class AssemblyLoadPatch
         );
     }
 
+    [StackTraceHidden]
     private static void Prefix(Assembly assembly)
     {
         // If it doesn't have a fullname then we probably don't care whatever.

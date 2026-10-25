@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="../Launcher.props" />
+
+    <PropertyGroup>
+        <!--
+        The assembly is deliberately named "Robust.Shared" so that AssemblyHidingManager's engine-enumerator
+        hooks (PatchEngineEnumerators) resolve Robust.Shared.Reflection.ReflectionManager and
+        Robust.Shared.ContentPack.BaseModLoader against these stubs. There is no real Robust.Shared in this
+        solution (the engine is loaded from a zip at runtime), so there is no build collision.
+        -->
+        <AssemblyName>Robust.Shared</AssemblyName>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+</Project>

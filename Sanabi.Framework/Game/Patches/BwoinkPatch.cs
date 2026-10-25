@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using HarmonyLib;
 using Sanabi.Framework.Game.Managers;
 using Sanabi.Framework.Data;
@@ -12,6 +13,7 @@ namespace Sanabi.Framework.Game.Patches;
 public static class BwoinkPatch
 {
     [PatchEntry(PatchRunLevel.Content)]
+    [StackTraceHidden]
     public static void Patch()
     {
         if (!SanabiConfig.ProcessConfig.LoadInternalMods)
@@ -32,6 +34,7 @@ public static class BwoinkPatch
         );
     }
 
+    [StackTraceHidden]
     private static bool Prefix(ref dynamic __instance, dynamic? sender, dynamic message)
     {
         //__instance.UnreadAHelpReceived();

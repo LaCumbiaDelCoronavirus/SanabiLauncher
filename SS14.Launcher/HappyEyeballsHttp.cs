@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -56,7 +56,6 @@ public static class HappyEyeballsHttp
         SocketsHttpConnectionContext context,
         CancellationToken cancellationToken)
     {
-        var sanabi = Environment.StackTrace;
         // Get IPs via DNS.
         // Note that we do not attempt to exclude IPv6 if the user doesn't have IPv6.
         // According to the docs, GetHostEntryAsync will not return them if there's no address.
