@@ -6,10 +6,16 @@ examples over prose.
 **Quick reference:**
 - New fork-owned code → `Sanabi.Framework` (or a `Sanabi`-named file/namespace); prefer it over editing an
   upstream file (see §1).
-- Follow upstream SS14.Launcher conventions, plus the local C# rules in §2.
-- New tests → make them go red before you trust them (see §3).
-- The `LauncherInfoModel` JSON endpoint the launcher fetches on startup is documented in §4 — keep the
+- Two processes: the launcher UI and the game. Sanabi's patching lives in the **game** process and reaches the
+  engine only by reflection/Harmony — see §2 before touching the injection path.
+- Follow upstream SS14.Launcher conventions, plus the local C# rules in §3.
+- New tests → make them go red before you trust them (see §4).
+- The `LauncherInfoModel` JSON endpoint the launcher fetches on startup is documented in §5 — keep the
   embedded fallback in sync with it.
+- Config values are CVars; fork ones go in `SanabiCVars`, and game-process ones must also be added to the
+  `SanabiConfig` IPC struct (see §6).
+- User-facing strings are Fluent `.ftl` files; keep **both** `en-US` and `ru` in sync — those are the only
+  locales the fork maintains (see §7).
 
 ## 1. Project lineage
 
@@ -33,7 +39,69 @@ Prefer adding a new, fork-owned file over editing an upstream one. An upstream f
 conflict waiting for the next pull; a new `Sanabi.Framework` file merges cleanly. Edit upstream in place only
 when you're genuinely changing upstream behaviour (e.g. `SS14.Launcher/HappyEyeballsHttp.cs`).
 
-## 2. C# code style
+## 2. Runtime architecture: how patching reaches the game
+
+There are **two processes**, and it matters constantly which one you're in:
+
+- **The launcher UI process** (`SS14.Launcher`, an Avalonia app). Logs in, browses/downloads engine + content,
+  then spawns the game. Right before spawning it stands up the Sanabi IPC servers in
+  [`SS14.Launcher/Models/Connector.cs`](SS14.Launcher/Models/Connector.cs): a struct pipe that hands the game
+  its `SanabiConfig` (built from the user's CVars) and a string pipe that receives crash reports back. This
+  process is **not** patched and never loads `Sanabi.Framework` into itself.
+- **The game process** (`SS14.Loader` → the engine). This is where Sanabi lives, and the only place assembly
+  hiding / detection vectors matter — because this is where the engine (and anything it hosts) can enumerate
+  the loaded assemblies and notice the fork.
+
+**Game-process startup** ([`SS14.Loader/Program.cs`](SS14.Loader/Program.cs)):
+1. Verify the engine zip's Ed25519 signature, then register an `AssemblyLoadContext.Default.Resolving` hook
+   that streams the engine DLLs (`Robust.Client`, `Robust.Shared`, …) straight out of the zip.
+2. Reflectively invoke `Sanabi.Framework.Bootstrap.SanabiLoaderEntry.InstallEngineHooks(...)` **by name** — so
+   `SS14.Loader.dll` keeps no compile-time reference to the fork and no `AssemblyRef` that would betray it (this
+   is why the loader looks vanilla; see §1). This reflection call is the one and only bridge from the
+   vanilla-looking loader into Sanabi.
+3. Hand control to the engine's own `ILoaderEntryPoint.Main`.
+
+[`SanabiLoaderEntry.InstallEngineHooks`](Sanabi.Framework/Bootstrap/SanabiLoaderEntry.cs) is the fork's real
+entry point. It receives `SanabiConfig` over the pipe, and when the config's `PatchRunLevel` includes `Engine`:
+initializes Harmony, hides the fork assemblies + patches the detection vectors, runs the engine-level patch
+entries, and wires `AssemblyManager`. Content-level patch entries fire later — once content assemblies are
+loaded — via `AssemblyManager.OnAssembliesFulfilled`.
+
+**The engine (RobustToolbox) is not vendored in this repo.** Everything Sanabi does to it crosses a
+reflection/Harmony boundary: resolve engine types and methods by qualified name through
+`ReflectionManager.GetTypeByQualifiedName` / `PatchHelpers` / `AccessTools`. Never add a compile-time dependency
+on the engine.
+
+### The managers (`Sanabi.Framework/Game/Managers`)
+
+- **`HarmonyManager`** — owns the single Harmony instance (`HarmonyManager.Harmony`); `Initialise()` once.
+- **`AssemblyHidingManager`** — the stealth core. `HideBasicAssemblies()` seeds the hidden set
+  (`Sanabi.Framework`, `0Harmony`, `SS14.Common`, `MonoMod`, the dynamic-method assemblies);
+  `PatchDetectionVectors()` Harmony-patches the runtime enumeration surface (`AppDomain.GetAssemblies`,
+  `AssemblyLoadContext`, `Assembly.GetTypes`/`GetType`/`Location`, `Type.Assembly`, stack traces) plus the
+  engine's own `ReflectionManager.Assemblies`/`FindAllTypes`. `HideAssembly(...)` adds more at runtime (mods are
+  hidden as they load). `ForceEngineView()` is a scoped escape hatch that temporarily *unfilters* those hooks so
+  Sanabi's own code can see the real list (used during mod type-discovery); `EngineOverridenCallsites` is an
+  allowlist of engine methods that must always see the true, unfiltered list.
+- **`AssemblyManager`** — the dictionary of known assemblies (`Robust.Client`/`Robust.Shared` + content) and the
+  run-level fulfillment events that gate `PatchRunLevel.Content`.
+- **`AssemblyLoadingManager`** — loads external user mods from `LauncherPaths.SanabiModsPath` (`.dll`, folder, or
+  `.zip`), gated on the `LoadExternalMods` CVar. It is deliberately **detached** from the engine `ModLoader`
+  (see that file's own docs): it registers a mod's types with the engine `ReflectionManager` and drives the
+  `GameShared` lifecycle itself, so mods never enter `BaseModLoader.LoadedModules`.
+- **`IpcManager`** — the named-pipe client side of the launcher↔game IPC (`SanabiIpcName` for config,
+  `SanabiCrashIpcName` for crash reports).
+
+### The patch-entry model
+
+Fork features are static methods tagged `[PatchEntry(PatchRunLevel.Engine | Content)]`
+([`PatchEntryAttribute.cs`](Sanabi.Framework/Game/Patches/PatchEntryAttribute.cs));
+`PatchEntryAttributeManager.ProcessRunLevel(level)` discovers and invokes them at the matching stage. An entry
+method takes either no args or a single `Dictionary<string, Assembly?>` (it receives `AssemblyManager.Assemblies`).
+`Engine` = engine assemblies loaded but the game entry point not yet started; `Content` = everything loaded and
+running. The individual Harmony patches themselves live under `Sanabi.Framework/Game/Patches/`.
+
+## 3. C# code style
 
 Follow upstream Space Wizards' C# conventions
 ([style guide](https://docs.spacestation14.com/en/general-development/codebase-info/style-guide.html),
@@ -85,7 +153,7 @@ return Flags == other.Flags;        // this - an integer compare, no allocation
 ```
 `==`, `!=` and bitwise tests (`(flags & Flag) != 0`) never box.
 
-## 3. Testing: prove a test can fail
+## 4. Testing: prove a test can fail
 
 A test you have never watched fail is not yet a test — it might pass no matter what the code does. Before you
 trust a new test, make it go red on purpose, then green again.
@@ -110,7 +178,7 @@ assembly-detection vectors against Sanabi and exits non-zero if any of them find
 leak, so a green result in the other test means something. This is also how the harness earned its keep: run
 against the live Harmony patches, it surfaced real stealth leaks the logic-only unit tests could not.
 
-## 4. `LauncherInfoModel` JSON format
+## 5. `LauncherInfoModel` JSON format
 
 The launcher fetches a JSON document from `ConfigConstants.UrlLauncherInfo` (see
 [`SS14.Launcher/ConfigConstants.cs`](SS14.Launcher/ConfigConstants.cs)) on startup, which is
@@ -215,3 +283,97 @@ A real payload must **not** contain the `//` comments below.
 - Bump `ConfigConstants.CurrentLauncherVersion` and add the new value to `allowedVersions`
   together when cutting a new launcher release, otherwise existing users will be shown as
   out-of-date.
+
+## 6. CVars (configuration values)
+
+Every persisted setting is a **CVar**: a typed, named, defaulted value defined with
+`CVarDef.Create("Name", defaultValue)` ([`SS14.Common/Data/CVarDef.cs`](SS14.Common/Data/CVarDef.cs)).
+
+**Where they live.**
+- Upstream CVars → [`SS14.Launcher/Models/Data/CVars.cs`](SS14.Launcher/Models/Data/CVars.cs).
+- Fork CVars → the `SanabiCVars` partial class in `Sanabi.Framework/Data/SanabiCVars*.cs`, split across partial
+  files by topic (e.g. [`SanabiCVars.cs`](Sanabi.Framework/Data/SanabiCVars.cs) for general stealth/UI toggles,
+  [`SanabiCVars.Patching.cs`](Sanabi.Framework/Data/SanabiCVars.Patching.cs) for patch toggles).
+- Account-scoped CVars → `SanabiAccountCVars` ([`SanabiAccountCVars.cs`](Sanabi.Framework/Data/SanabiAccountCVars.cs)):
+  one value *per account* (e.g. the HWID `SpoofingSeed`), stored under the key `"<guid>::ACCOUNT::<name>"`.
+
+**Registration is reflection-based — just declaring the field is enough.** `DataManager.InitializeCVars()`
+([`SS14.Launcher/Models/Data/DataManager.cs`](SS14.Launcher/Models/Data/DataManager.cs)) walks the public static
+fields of `CVars` and `SanabiCVars` and registers every `CVarDef` it finds; account CVars are registered per
+account via `AssignAccountCVars(guids, typeof(SanabiAccountCVars))`. So a new fork setting is just a new
+`public static readonly CVarDef<T>` field in the right class — no extra wiring. Values persist in the launcher's
+SQLite config DB. Read/write with `GetCVar` / `SetCVar` (`GetActiveAccountCVarOrDefault` for account CVars); UI
+view-models commit through `SetAndCommitCvar`. Default to the safe/off value (patching defaults to off).
+
+**CVars are launcher-UI-process state; the game process never reads them directly.** The settings the game needs
+are copied into the blittable `SanabiConfig` struct and sent over IPC
+([`SanabiConfig.cs`](Sanabi.Framework/Data/SanabiConfig.cs); see the IPC servers in §2). Therefore, to expose a
+CVar *to the game*, do all three:
+1. declare the `CVarDef` in `SanabiCVars`;
+2. add a matching field to the `SanabiConfig` struct (it must stay an unmanaged, blittable,
+   `[StructLayout(Sequential, Pack=1)]` struct — no reference types);
+3. map CVar → struct field in `SanabiConfigExtensions.Configure(dataManager)`.
+
+A CVar that only affects the launcher UI (e.g. `StartOnLoginMenu`, `FancyBackground`) needs only step 1.
+
+### Per-account CVars
+
+Some settings need a *separate value per logged-in account* rather than one global value — these live in
+[`SanabiAccountCVars`](Sanabi.Framework/Data/SanabiAccountCVars.cs). They are defined exactly like any other
+CVar (`CVarDef.Create(...)`), but each account gets its own stored entry, keyed
+`"<account-guid>::ACCOUNT::<name>"` (`DataManager.GetAccountCVarIdentifier`).
+
+Current members:
+- **`SpoofingSeed`** (`long`, a bit-reinterpreted `ulong`) — the seed the HWID spoofer
+  ([`HwidPatch`](Sanabi.Framework/Game/Patches/HwidPatch.cs)) and the spoofed fingerprint derive from. Per-account
+  so each account presents its own stable-but-distinct HWID.
+- **`ShouldRegenerateSeed`** (`bool`) — when set, a fresh `SpoofingSeed` is generated the next time the account
+  becomes active, then cleared.
+- **`AuthServers`** (`string`) — the account's auth-server URL set (vertical-bar-separated sets, comma-separated
+  fallbacks); a sentinel default (`AuthServersDefaultSerializedNullEscapeValue`) means "unset, use the default".
+
+**Lifecycle.** Unlike global CVars (registered once in `InitializeCVars`), per-account entries are materialized
+lazily: when an account becomes active, `DataManager.BeforeActiveAccountUpdate` calls
+`AssignAccountCVars([userId], typeof(SanabiAccountCVars), overwrite: false)` to create that account's entries if
+they don't already exist (`overwrite: false` keeps any previously-saved values), then reloads them from SQLite.
+
+**Access** ([`DataManager.cs`](SS14.Launcher/Models/Data/DataManager.cs)):
+- `GetActiveAccountCVarOrDefault(def)` — the active account's value, or the CVar default if there's no active
+  account or no stored entry. This is what `SanabiConfig.Configure` uses (e.g. for `SpoofingSeed`).
+- `GetAccountCVar(def, guid)` / `GetAccountCVarOrDefault(def, guid?)` — a specific account's value.
+- `SetAccountCVar(def, guid, value)` / `TrySetActiveAccountCVar(def, value)` — write (persisted to SQLite under
+  the account-scoped key).
+
+**Adding a per-account CVar:** declare the field in `SanabiAccountCVars` — it is assigned automatically for each
+account as it activates (no `InitializeCVars` change needed, since that only registers the global `CVars` and
+`SanabiCVars`). If the game process needs it per-account, read it via `GetActiveAccountCVarOrDefault` inside
+`SanabiConfig.Configure` and carry it in the `SanabiConfig` struct, exactly as `SpoofingSeed` does.
+
+## 7. Localization
+
+User-facing strings are [Fluent](https://projectfluent.org/) `.ftl` files under
+`SS14.Launcher/Assets/Locale/<culture>/`, embedded as Avalonia resources (`avares://`) and loaded by
+[`LocalizationManager`](SS14.Launcher/Localization/LocalizationManager.cs) via the Linguini library. Localization
+is a **launcher-UI-process** concern only — the game process has nothing to do with it.
+
+**How a culture is assembled.** `LoadCulture(culture)` builds a fresh Fluent bundle by first loading the
+`en-US` files as the base layer, then layering the selected culture's files on top with
+`AddResourceOverriding` (walking up parent cultures, e.g. `ru-RU` → `ru`). So **`en-US` is always the fallback**:
+any key missing in the active locale falls back to the `en-US` text, and a key missing everywhere makes
+`GetString` return the key string itself. The active culture is chosen at startup from the `CVars.Language`
+CVar, or the matched system culture if unset; `SwitchToLanguage` rebuilds the bundle and fires `LanguageSwitched`
+so views re-resolve their strings. `AvailableLanguages` is the language-picker list.
+
+**Two `.ftl` files per maintained locale:**
+- `text.ftl` — upstream strings (synced from Weblate; don't hand-edit for fork features).
+- `sanabi.ftl` — **fork-added strings go here.**
+
+**Always keep `en-US` and `ru` in sync — they are the only locales the fork maintains.** Both carry a
+`sanabi.ftl`; every other culture directory has only the upstream `text.ftl` (and mostly from Weblate), so fork
+strings simply don't exist there and fall back to `en-US`. When you add or rename a user-facing string:
+1. add the key to **both** `Assets/Locale/en-US/sanabi.ftl` and `Assets/Locale/ru/sanabi.ftl`;
+2. don't bother with the other locales — leave them to fall back. Adding a half-translated key to only one of
+   `en-US`/`ru` is the bug to avoid.
+
+(Weblate stores sub-tag codes with an underscore — `zh_Hans`, `pt_BR` — which `LocalizationManager` maps back to
+the hyphenated culture name; keep fork locale folders named to match what the loader expects.)
