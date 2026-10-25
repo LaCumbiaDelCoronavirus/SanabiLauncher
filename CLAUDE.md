@@ -45,8 +45,8 @@ There are **two processes**, and it matters constantly which one you're in:
 
 - **The launcher UI process** (`SS14.Launcher`, an Avalonia app). Logs in, browses/downloads engine + content,
   then spawns the game. Right before spawning it stands up the Sanabi IPC servers in
-  [`SS14.Launcher/Models/Connector.cs`](SS14.Launcher/Models/Connector.cs): a struct pipe that hands the game
-  its `SanabiConfig` (built from the user's CVars) and a string pipe that receives crash reports back. This
+  [`SS14.Launcher/Models/Connector.cs`](SS14.Launcher/Models/Connector.cs): a config pipe that hands the game its
+  `SanabiConfig` as JSON (built from the user's CVars) and a string pipe that receives crash reports back. This
   process is **not** patched and never loads `Sanabi.Framework` into itself.
 - **The game process** (`SS14.Loader` → the engine). This is where Sanabi lives, and the only place assembly
   hiding / detection vectors matter — because this is where the engine (and anything it hosts) can enumerate
@@ -306,15 +306,20 @@ SQLite config DB. Read/write with `GetCVar` / `SetCVar` (`GetActiveAccountCVarOr
 view-models commit through `SetAndCommitCvar`. Default to the safe/off value (patching defaults to off).
 
 **CVars are launcher-UI-process state; the game process never reads them directly.** The settings the game needs
-are copied into the blittable `SanabiConfig` struct and sent over IPC
-([`SanabiConfig.cs`](Sanabi.Framework/Data/SanabiConfig.cs); see the IPC servers in §2). Therefore, to expose a
-CVar *to the game*, do all three:
+are copied into the `SanabiConfig` object and sent over IPC as JSON
+([`SanabiConfig.cs`](Sanabi.Framework/Data/SanabiConfig.cs); the IPC transport is
+`IpcManager.RunObjectPipeServer`/`RunObjectPipeClient`, see §2). `SanabiConfig` is a plain class serialized with
+**source-generated** `System.Text.Json` (`SanabiJsonContext`) — source gen, not reflection, because the game
+process publishes trimmed (`RobustILLink`) and the reflection serializer would be stripped. It can therefore
+carry strings and lists, not just blittable primitives. To expose a CVar *to the game*, do all three:
 1. declare the `CVarDef` in `SanabiCVars`;
-2. add a matching field to the `SanabiConfig` struct (it must stay an unmanaged, blittable,
-   `[StructLayout(Sequential, Pack=1)]` struct — no reference types);
-3. map CVar → struct field in `SanabiConfigExtensions.Configure(dataManager)`.
+2. add a matching property to the `SanabiConfig` class (strings / `List<string>` / nested objects are fine; if
+   you add a brand-new top-level payload type, give it a `[JsonSerializable(...)]` entry on `SanabiJsonContext`);
+3. map CVar → property in `SanabiConfigExtensions.Configure(dataManager)`.
 
-A CVar that only affects the launcher UI (e.g. `StartOnLoginMenu`, `FancyBackground`) needs only step 1.
+A CVar that only affects the launcher UI (e.g. `StartOnLoginMenu`, `FancyBackground`) needs only step 1. Note the
+config DB only persists primitive-typed CVars (string/bool/int/long), so a list-valued setting is stored as a
+JSON `string` CVar and parsed on both ends — see `EnabledExternalMods` / `EnabledExternalModsCVar`.
 
 ### Per-account CVars
 

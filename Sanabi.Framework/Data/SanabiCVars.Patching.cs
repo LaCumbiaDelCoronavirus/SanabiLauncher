@@ -55,9 +55,9 @@ public static partial class SanabiCVars
     public static readonly CVarDef<bool> WaitForDebugger = CVarDef.Create("WaitForDebugger", false);
 
     /// <summary>
-    ///     Map of flags representing which external mods were loaded.
-    ///         First loaded mod is on the right-most bit.
+    ///     The external mods the user enabled, stored as a JSON array of their names (see
+    ///         <see cref="EnabledExternalModsCVar"/>). Replaces the old packed-bitflag <c>long</c> so selection
+    ///         is keyed by name rather than directory order.
     /// </summary>
-    // If you decide to change this to something other than long then change code in AssemblyLoadingManager
-    public static readonly CVarDef<long> LoadedExternalModsFlags = CVarDef.Create("LoadedExternalModsFlags", 0L);
+    public static readonly CVarDef<string> EnabledExternalMods = CVarDef.Create("EnabledExternalMods", "");
 }

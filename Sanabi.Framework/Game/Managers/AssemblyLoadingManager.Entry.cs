@@ -98,9 +98,6 @@ public static partial class AssemblyLoadingManager
         Console.WriteLine($"Entered patch at {entryMethod.DeclaringType?.FullName}");
     }
 
-    // Bitmap will fix it
-    public static bool GetIsModEnabled(long bitmap, int index)
-        => (bitmap & (1L << index)) != 0;
     private static void ModLoaderPostfix(ref dynamic __instance)
     {
         while (_dataPendingAssemblyLoad.TryDequeue(out var modData))

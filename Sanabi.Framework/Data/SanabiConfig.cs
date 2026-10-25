@@ -1,36 +1,49 @@
-using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using JetBrains.Annotations;
 using Sanabi.Framework.Game.Patches;
 
 namespace Sanabi.Framework.Data;
 
 /// <summary>
-///     Contains definitions for all SanabiLauncher-specific configuration values.
-///         This is passed from launcher -> loader
+///     Source-generated JSON metadata for the types sent over IPC. Source generation (rather than reflection)
+///         keeps (de)serialization working in the trimmed game-process publish (<c>RobustILLink</c>), where the
+///         reflection-based serializer would be stripped and silently fall back to defaults.
+/// </summary>
+[JsonSerializable(typeof(SanabiConfig))]
+[JsonSerializable(typeof(List<string>))]
+public sealed partial class SanabiJsonContext : JsonSerializerContext;
+
+/// <summary>
+///     Contains all SanabiLauncher-specific configuration values, passed from the launcher UI process to the
+///         loader (game) process over IPC.
 ///
-///     This must be an unmanaged blittable strict; i.e. one with a fixed size,
-///         so that it can be easily passed from launcher -> loader via IPC.
+///     Serialized as JSON (see <see cref="Game.Managers.IpcManager.RunObjectPipeServer{T}"/>), so unlike the old
+///         blittable struct it may carry variable-length data such as strings and lists of strings.
 /// </summary>
 [UsedImplicitly]
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-public record struct SanabiConfig()
+public sealed class SanabiConfig
 {
     public static SanabiConfig ProcessConfig = new();
 
-    public PatchRunLevel PatchRunLevel = PatchRunLevel.None;
+    public PatchRunLevel PatchRunLevel { get; set; } = PatchRunLevel.None;
 
-    public bool RunHwidPatch = true;
-    public bool RunBetterFullscreenPatch = true;
-    public bool RunUserDataPatch = true;
+    public bool RunHwidPatch { get; set; } = true;
+    public bool RunBetterFullscreenPatch { get; set; } = true;
+    public bool RunUserDataPatch { get; set; } = true;
 
-    public ulong HwidPatchSeed = 1ul;
+    public ulong HwidPatchSeed { get; set; } = 1ul;
 
-    public bool LoadInternalMods = false;
-    public bool LoadExternalMods = false;
+    public bool LoadInternalMods { get; set; } = false;
+    public bool LoadExternalMods { get; set; } = false;
 
-    public bool WaitForDebugger = false;
+    public bool WaitForDebugger { get; set; } = false;
 
-    public long LoadedExternalModsFlags = 0L;
+    /// <summary>
+    ///     Names (<see cref="Game.Managers.ILoadedModData.Name"/>) of the external mods the user enabled. Replaces
+    ///         the old packed bit-flags field; order is not significant.
+    /// </summary>
+    public List<string> EnabledExternalMods { get; set; } = new();
 }
 
 public static class SanabiConfigExtensions
@@ -53,8 +66,34 @@ public static class SanabiConfigExtensions
         config.LoadInternalMods = dataManager.GetCVar(SanabiCVars.LoadInternalMods);
         config.LoadExternalMods = dataManager.GetCVar(SanabiCVars.LoadExternalMods);
         config.WaitForDebugger = dataManager.GetCVar(SanabiCVars.WaitForDebugger);
-        config.LoadedExternalModsFlags = dataManager.GetCVar(SanabiCVars.LoadedExternalModsFlags);
+        config.EnabledExternalMods = EnabledExternalModsCVar.Parse((string)dataManager.GetCVar(SanabiCVars.EnabledExternalMods));
 
         return config;
     }
+}
+
+/// <summary>
+///     (De)serialization for the <see cref="SanabiCVars.EnabledExternalMods"/> CVar. The config DB only persists
+///         primitive-typed CVars, so the enabled-mod name list rides inside a string as a JSON array.
+/// </summary>
+public static class EnabledExternalModsCVar
+{
+    public static List<string> Parse(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return new();
+
+        try
+        {
+            return JsonSerializer.Deserialize(raw, SanabiJsonContext.Default.ListString) ?? new();
+        }
+        catch (JsonException)
+        {
+            // Corrupt/legacy value: treat as "nothing selected" rather than crashing the launcher.
+            return new();
+        }
+    }
+
+    public static string Serialize(IEnumerable<string> modNames)
+        => JsonSerializer.Serialize(modNames.ToList(), SanabiJsonContext.Default.ListString);
 }

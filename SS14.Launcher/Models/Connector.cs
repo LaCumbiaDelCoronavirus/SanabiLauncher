@@ -712,7 +712,7 @@ public partial class Connector : ReactiveObject
 
         Log.Debug("Launch command: {LaunchCommand}", commandBuilder.ToString());
 
-        _ = IpcManager.RunStructPipeServer(IpcManager.SanabiIpcName, new SanabiConfig().Configure(_cfg));
+        _ = IpcManager.RunObjectPipeServer(IpcManager.SanabiIpcName, new SanabiConfig().Configure(_cfg), SanabiJsonContext.Default.SanabiConfig);
 
         // In case a previous launch's crash-report cleanup is still winding down in the background.
         _crashCancelSource?.Cancel();

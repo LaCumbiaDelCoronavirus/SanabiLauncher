@@ -139,11 +139,11 @@ public static partial class AssemblyLoadingManager
 
         TotalExternalModCount = modules.Count;
 
-        var index = 0;
+        var enabledMods = SanabiConfig.ProcessConfig.EnabledExternalMods.ToHashSet();
         foreach (var module in modules)
         {
             SanabiLogger.LogInfo($"ASMLOAD: Considering to load mod `{module.Name}`");
-            if (!GetIsModEnabled(SanabiConfig.ProcessConfig.LoadedExternalModsFlags, index++))
+            if (!enabledMods.Contains(module.Name))
                 continue;
 
             SanabiLogger.LogInfo($"ASMLOAD: Loading mod `{module.Name}`");

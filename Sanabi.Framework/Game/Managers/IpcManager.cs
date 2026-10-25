@@ -1,6 +1,6 @@
 using System.IO.Pipes;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Sanabi.Framework.Game.Managers;
 
@@ -13,16 +13,20 @@ public static class IpcManager
     public const string SanabiCrashIpcName = "sanabiss14launchercrashipc";
 
     /// <summary>
-    ///     Connects and starts running the server pipe. This directly moves an unmanaged structs
-    ///         into the pipe. The server is disconnected when done.
+    ///     Connects and starts running the server pipe, writing <paramref name="value"/> as a UTF-8 JSON payload.
+    ///         Unlike a raw struct copy this handles variable-length data (strings, lists, nested objects), so the
+    ///         payload type need not be a blittable struct. The server waits until the client has drained the
+    ///         payload, then disconnects.
     /// </summary>
-    public static async Task RunStructPipeServer<TDatum>(string pipeName, TDatum transferredStruct) where TDatum : unmanaged
+    public static async Task RunObjectPipeServer<TDatum>(string pipeName, TDatum value, JsonTypeInfo<TDatum> typeInfo)
     {
         var server = InitiateServer(pipeName, pipeDirection: PipeDirection.Out);
         await server.WaitForConnectionAsync();
 
-        var data = StructToMemory(ref transferredStruct);
+        var data = JsonSerializer.SerializeToUtf8Bytes(value, typeInfo);
         await server.WriteAsync(data);
+        await server.FlushAsync();
+        server.WaitForPipeDrain();
 
         server.Disconnect();
         server.Dispose();
@@ -78,28 +82,21 @@ public static class IpcManager
     }
 
     /// <summary>
-    ///     Connects and starts running the client pipe. This is synchronous;
-    ///         it is assumed that the server is already running.
+    ///     Connects to the server pipe and reads the complete JSON payload written by
+    ///         <see cref="RunObjectPipeServer{TDatum}"/>, deserializing it to <typeparamref name="TDatum"/>.
+    ///         Synchronous; it is assumed that the server is already running.
     /// </summary>
-    public static TDatum RunStructPipeClient<TDatum>(string pipeName) where TDatum : unmanaged
+    public static TDatum RunObjectPipeClient<TDatum>(string pipeName, JsonTypeInfo<TDatum> typeInfo)
     {
         var client = InitiateClient(pipeName, pipeDirection: PipeDirection.In);
         client.Connect();
 
-        var buffer = new byte[Unsafe.SizeOf<TDatum>()];
-        var offset = 0;
-
-        while (offset < buffer.Length)
-        {
-            var bytesRead = client.Read(buffer, offset, buffer.Length - offset);
-            if (bytesRead == 0)
-                throw new InvalidOperationException("Server was disconnected while reading.");
-
-            offset += bytesRead;
-        }
-
+        using var buffer = new MemoryStream();
+        client.CopyTo(buffer); // reads until the server finishes writing and disconnects
         client.Dispose();
-        return MemoryToStruct<TDatum>(buffer.AsMemory());
+
+        return JsonSerializer.Deserialize(buffer.ToArray(), typeInfo)
+            ?? throw new InvalidOperationException($"Received a null/empty {typeof(TDatum).Name} payload over pipe '{pipeName}'.");
     }
 
     /// <summary>
@@ -170,20 +167,5 @@ public static class IpcManager
     {
         streamReader = new StreamReader(pipeStream);
         streamWriter = new StreamWriter(pipeStream) { AutoFlush = true };
-    }
-
-    public static ReadOnlyMemory<byte> StructToMemory<T>(ref T str) where T : unmanaged
-    {
-        var buffer = new byte[Unsafe.SizeOf<T>()];
-        Unsafe.WriteUnaligned(ref buffer[0], str);
-        return buffer.AsMemory(); // expose as ReadOnlyMemory<byte>
-    }
-
-    public static T MemoryToStruct<T>(ReadOnlyMemory<byte> mem) where T : unmanaged
-    {
-        if (mem.Length < Unsafe.SizeOf<T>())
-            throw new ArgumentException("Memory is too small for struct");
-
-        return Unsafe.ReadUnaligned<T>(ref MemoryMarshal.GetReference(mem.Span));
     }
 }

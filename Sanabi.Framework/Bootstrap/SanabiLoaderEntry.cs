@@ -30,7 +30,7 @@ public static class SanabiLoaderEntry
         AssemblyManager.Assemblies["Robust.Shared"] = sharedAssembly;
 
         // Wait until properly connected: receive the per-process config from the launcher over the pipe.
-        SanabiConfig.ProcessConfig = IpcManager.RunStructPipeClient<SanabiConfig>(IpcManager.SanabiIpcName);
+        SanabiConfig.ProcessConfig = IpcManager.RunObjectPipeClient(IpcManager.SanabiIpcName, SanabiJsonContext.Default.SanabiConfig);
 
         if (SanabiConfig.ProcessConfig.WaitForDebugger)
         {

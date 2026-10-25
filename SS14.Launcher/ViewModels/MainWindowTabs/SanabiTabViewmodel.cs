@@ -8,6 +8,7 @@ using Sanabi.Framework.Data;
 using System.Collections.ObjectModel;
 using Sanabi.Framework.Game.Managers;
 using System;
+using System.Linq;
 using ReactiveUI;
 using System.IO;
 
@@ -40,17 +41,25 @@ public class SanabiTabViewModel : MainWindowTabViewModel
         if (!AssemblyLoadingManager.TryGetExternalMods(out var externalMods))
             return;
 
-        var index = 0;
-        var originalMap = Cfg.GetCVar(SanabiCVars.LoadedExternalModsFlags);
+        var enabledMods = EnabledExternalModsCVar.Parse(Cfg.GetCVar(SanabiCVars.EnabledExternalMods)).ToHashSet();
 
         foreach (var mod in externalMods)
-        {
-            var patchVm = new LoadedPatchViewmodel(this, mod.Name, index);
-            patchVm.SetEnabled(AssemblyLoadingManager.GetIsModEnabled(originalMap, index), originalMap);
+            PatchList.Add(new LoadedPatchViewmodel(this, mod.Name, enabledMods.Contains(mod.Name)));
+    }
 
-            index++;
-            PatchList.Add(patchVm);
-        }
+    /// <summary>
+    ///     Adds or removes <paramref name="modName"/> from the persisted set of enabled external mods.
+    /// </summary>
+    internal void SetModEnabled(string modName, bool enabled)
+    {
+        var enabledMods = EnabledExternalModsCVar.Parse(Cfg.GetCVar(SanabiCVars.EnabledExternalMods)).ToHashSet();
+
+        if (enabled)
+            enabledMods.Add(modName);
+        else
+            enabledMods.Remove(modName);
+
+        SetAndCommitCvar(SanabiCVars.EnabledExternalMods, EnabledExternalModsCVar.Serialize(enabledMods));
     }
 
     internal void SetAndCommitCvar<T>(CVarDef<T> cVarDef, T newValue)
@@ -240,31 +249,34 @@ public class SanabiTabViewModel : MainWindowTabViewModel
     }
 }
 
-public class LoadedPatchViewmodel(SanabiTabViewModel parentVm, string filename, int index) : ViewModelBase
+public class LoadedPatchViewmodel : ViewModelBase
 {
-    private SanabiTabViewModel _parentVm = parentVm;
+    private readonly SanabiTabViewModel _parentVm;
 
-    // Binding; do not rename/remove/change signature
-    public string Filename { get; set; } = filename;
+    private bool _isEnabled;
 
-    // Bitmap index
-    public int Index { get; set; } = index;
-
-    // Binding; do not rename/remove/change signature
-    private bool IsEnabled
+    public LoadedPatchViewmodel(SanabiTabViewModel parentVm, string filename, bool isEnabled)
     {
-        get => AssemblyLoadingManager.GetIsModEnabled(_parentVm.Cfg.GetCVar(SanabiCVars.LoadedExternalModsFlags), Index);
-        set => SetEnabled(value, null);
+        _parentVm = parentVm;
+        Filename = filename;
+        _isEnabled = isEnabled;
     }
 
-    public void SetEnabled(bool value, long? map = null)
-    {
-        map ??= _parentVm.Cfg.GetCVar(SanabiCVars.LoadedExternalModsFlags);
-        if (value)
-            map |= 1L << Index;
-        else
-            map &= ~(1L << Index);
+    // Binding; do not rename/remove/change signature
+    public string Filename { get; set; }
 
-        _parentVm.SetAndCommitCvar(SanabiCVars.LoadedExternalModsFlags, map.Value);
+    // Binding; do not rename/remove/change signature
+    public bool IsEnabled
+    {
+        get => _isEnabled;
+        set
+        {
+            if (_isEnabled == value)
+                return;
+
+            _isEnabled = value;
+            _parentVm.SetModEnabled(Filename, value);
+            this.RaisePropertyChanged();
+        }
     }
 }
