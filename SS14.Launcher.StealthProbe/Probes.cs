@@ -162,10 +162,13 @@ public static class Probes
         return leaks;
     }
 
-    /// <summary>The engine's own enumerators, hooked via the Robust.Shared shim.</summary>
+    /// <summary>
+    ///     The engine's own enumerators, hooked via the Robust.Shared shim. (BaseModLoader.LoadedModules is
+    ///         deliberately NOT probed: Sanabi loads mods without registering them in the engine's Mods list, so
+    ///         they never enter LoadedModules — there is no hook to exercise and nothing to scrub.)
+    /// </summary>
     public static List<string> EngineEnumerators(
-        Robust.Shared.Reflection.ReflectionManager reflectionManager,
-        Robust.Shared.ContentPack.BaseModLoader modLoader)
+        Robust.Shared.Reflection.ReflectionManager reflectionManager)
     {
         var leaks = new List<string>();
 
@@ -176,10 +179,6 @@ public static class Probes
         foreach (var type in reflectionManager.FindAllTypes())
             if (IsHiddenTypeName(type.FullName))
                 leaks.Add($"ReflectionManager.FindAllTypes -> {type.FullName}");
-
-        foreach (var assembly in modLoader.LoadedModules)
-            if (IsHiddenName(SafeName(assembly)))
-                leaks.Add($"BaseModLoader.LoadedModules -> {SafeName(assembly)}");
 
         return leaks;
     }

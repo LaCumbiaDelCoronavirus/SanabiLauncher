@@ -41,9 +41,6 @@ var reflectionManager = new Robust.Shared.Reflection.ReflectionManager();
 reflectionManager.AssembliesList.AddRange([typeof(object).Assembly, typeof(Harmony).Assembly, sanabiAssembly]);
 reflectionManager.TypesList.AddRange([sanabiType, typeof(string)]);
 
-var modLoader = new Robust.Shared.ContentPack.BaseModLoader();
-modLoader.Modules.AddRange([typeof(object).Assembly, typeof(Harmony).Assembly, sanabiAssembly]);
-
 // A stack trace captured through a frame whose type name contains "Harmony", for the stack-trace probe.
 HarmonyFrameDecoy.Capture(out var environmentTrace, out var exceptionTrace);
 
@@ -57,7 +54,7 @@ var report = new List<(string Probe, List<string> Leaks)>
     ("P5 Assembly.Location", Probes.LocationOfHiddenAssembly(sanabiAssembly)),
     ("P6 Type.Assembly", Probes.TypeAssemblyName(sanabiType)),
     ("P7 StackTrace", Probes.StackTraces(environmentTrace, exceptionTrace)),
-    ("P8 Engine enumerators", Probes.EngineEnumerators(reflectionManager, modLoader)),
+    ("P8 Engine enumerators", Probes.EngineEnumerators(reflectionManager)),
 };
 
 Console.WriteLine(expectVisible

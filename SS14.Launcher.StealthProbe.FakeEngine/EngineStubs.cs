@@ -1,9 +1,9 @@
 using System.Reflection;
 
-// These stub types mirror, by qualified name and member shape, the two engine members that
-// AssemblyHidingManager.PatchEngineEnumerators() hooks. They let the stealth harness exercise those
-// hooks (which it otherwise could not, with no real engine present). They carry no behaviour of their
-// own: each exposes a list the harness fills and a getter/method the hook is applied to.
+// This stub type mirrors, by qualified name and member shape, the engine members that
+// AssemblyHidingManager.PatchEngineEnumerators() hooks. It lets the stealth harness exercise those
+// hooks (which it otherwise could not, with no real engine present). It carries no behaviour of its
+// own: it exposes lists the harness fills and the getter/method the hook is applied to.
 
 namespace Robust.Shared.Reflection
 {
@@ -24,20 +24,5 @@ namespace Robust.Shared.Reflection
 
         // Matches ReflectionManager.FindAllTypes() (parameterless, IEnumerable<Type>).
         public IEnumerable<Type> FindAllTypes() => TypesList;
-    }
-}
-
-namespace Robust.Shared.ContentPack
-{
-    /// <summary>
-    ///     Stub of the engine's <c>BaseModLoader</c>. Only <see cref="LoadedModules"/> exists, which Sanabi hooks.
-    /// </summary>
-    public sealed class BaseModLoader
-    {
-        /// <summary>Backing list the harness populates with "loaded" module assemblies.</summary>
-        public List<Assembly> Modules { get; } = [];
-
-        // Matches BaseModLoader.LoadedModules (IEnumerable<Assembly> getter).
-        public IEnumerable<Assembly> LoadedModules => Modules;
     }
 }
