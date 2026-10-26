@@ -37,7 +37,7 @@
   soundfont-path ? "${soundfont-fluid}/share/soundfonts/FluidR3_GM2-2.sf2",
 }:
 let
-  version = "2.21.15";
+  version = "2.21.16";
   pname = "space-station-14-launcher";
 in
 buildDotnetModule rec {
