@@ -7,7 +7,7 @@ using SS14.Launcher.Utility;
 namespace SS14.Launcher.ViewModels;
 
 /// <summary>
-///     The always-visible strip under the header that says a proxy is in use, through what, and whether it works.
+///     The always-visible strip above the header that says a proxy is in use, through what, and whether it works.
 /// </summary>
 public sealed class SanabiProxyBannerViewModel : ViewModelBase
 {
@@ -30,7 +30,11 @@ public sealed class SanabiProxyBannerViewModel : ViewModelBase
     public bool IsChecking => _proxyManager.State == SanabiProxyState.Checking;
     public bool IsFailed => _proxyManager.State == SanabiProxyState.Failed;
 
-    public string Text
+    public string ProfileName => _proxyManager.ActiveProfile is { } profile
+        ? _loc.GetString("proxy-banner-profile", ("name", profile.Name))
+        : string.Empty;
+
+    public string Details
     {
         get
         {
@@ -38,20 +42,18 @@ public sealed class SanabiProxyBannerViewModel : ViewModelBase
                 return string.Empty;
 
             var direct = _loc.GetString("proxy-banner-direct");
-            var status = _loc.GetString(_proxyManager.State switch
-            {
-                SanabiProxyState.Working => "proxy-banner-status-working",
-                SanabiProxyState.Failed => "proxy-banner-status-failed",
-                _ => "proxy-banner-status-checking",
-            });
-
-            return _loc.GetString("proxy-banner-text",
-                ("name", profile.Name),
+            return _loc.GetString("proxy-banner-details",
                 ("launcher", profile.Launcher?.DisplayString ?? direct),
-                ("game", profile.Game?.DisplayString ?? direct),
-                ("status", status));
+                ("game", profile.Game?.DisplayString ?? direct));
         }
     }
+
+    public string StatusText => _loc.GetString(_proxyManager.State switch
+    {
+        SanabiProxyState.Working => "proxy-banner-status-working",
+        SanabiProxyState.Failed => "proxy-banner-status-failed",
+        _ => "proxy-banner-status-checking",
+    });
 
     public string ToolTip => _proxyManager.State == SanabiProxyState.Failed && _proxyManager.LastError is { } error
         ? $"{error}\n\n{_loc.GetString("proxy-banner-tooltip")}"
@@ -66,7 +68,9 @@ public sealed class SanabiProxyBannerViewModel : ViewModelBase
         this.RaisePropertyChanged(nameof(IsWorking));
         this.RaisePropertyChanged(nameof(IsChecking));
         this.RaisePropertyChanged(nameof(IsFailed));
-        this.RaisePropertyChanged(nameof(Text));
+        this.RaisePropertyChanged(nameof(ProfileName));
+        this.RaisePropertyChanged(nameof(Details));
+        this.RaisePropertyChanged(nameof(StatusText));
         this.RaisePropertyChanged(nameof(ToolTip));
     }
 }

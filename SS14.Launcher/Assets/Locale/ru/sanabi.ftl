@@ -259,9 +259,10 @@ tab-proxy-error-bad-port = Прокси ({ $which }): порт должен бы
 tab-proxy-error-no-udp = Прокси игры должен быть SOCKS5.
 tab-proxy-error-credentials-too-long = Прокси ({ $which }): имя пользователя и пароль — не более 255 байт каждый.
 
-## Strings for the proxy banner shown under the header while a proxy profile is in use
+## Strings for the proxy banner shown above the header while a proxy profile is in use
 
-proxy-banner-text = Прокси: { $name } · Лаунчер: { $launcher } · Игра: { $game } · { $status }
+proxy-banner-profile = Прокси: { $name }
+proxy-banner-details = Лаунчер: { $launcher }   ·   Игра: { $game }
 proxy-banner-direct = напрямую
 proxy-banner-status-working = работает
 proxy-banner-status-checking = проверка…

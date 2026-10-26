@@ -180,9 +180,10 @@ tab-proxy-error-bad-port = { $which } proxy: the port must be a number from 1 to
 tab-proxy-error-no-udp = The game proxy must be SOCKS5.
 tab-proxy-error-credentials-too-long = { $which } proxy: the username and password can be at most 255 bytes each.
 
-## Strings for the proxy banner shown under the header while a proxy profile is in use
+## Strings for the proxy banner shown above the header while a proxy profile is in use
 
-proxy-banner-text = Proxy: { $name } · Launcher: { $launcher } · Game: { $game } · { $status }
+proxy-banner-profile = Proxy: { $name }
+proxy-banner-details = Launcher: { $launcher }   ·   Game: { $game }
 proxy-banner-direct = direct
 proxy-banner-status-working = working
 proxy-banner-status-checking = checking…

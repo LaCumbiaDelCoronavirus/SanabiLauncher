@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Threading;
 using Sanabi.Framework.Data;
 using Sanabi.Framework.Proxy;
@@ -322,7 +323,10 @@ public sealed class SanabiProxyManager : ISanabiProxyGate
 
     private void RaiseChanged()
     {
-        if (Dispatcher.UIThread.CheckAccess())
+        // Touching Dispatcher.UIThread before Avalonia's platform is set up (we're initialized, and the active
+        // account loaded, inside BuildAvaloniaApp) creates a dispatcher with no platform backend, and the main
+        // loop then throws PlatformNotSupportedException. No UI is listening yet anyway, so invoke directly.
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
             Changed?.Invoke();
         else
             Dispatcher.UIThread.Post(() => Changed?.Invoke());

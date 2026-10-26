@@ -25,6 +25,11 @@ public static class SanabiLoaderEntry
     /// <param name="robustClientExecutable">Path to the engine executable (stored for later use).</param>
     public static IDisposable InstallEngineHooks(Assembly clientAssembly, Assembly sharedAssembly, string robustClientExecutable)
     {
+        // The loader only catches what escapes the engine's entry point on the main thread. The engine runs its
+        // game loop (and so content loading, content-level patch entries, and most patched engine code) on its own
+        // thread, and an exception there kills the process without ever reaching the loader. Catch it here.
+        AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+
         LazySanabiConfig.RobustClientExecutable = robustClientExecutable;
 
         AssemblyManager.Assemblies["Robust.Client"] = clientAssembly;
@@ -76,6 +81,11 @@ public static class SanabiLoaderEntry
     /// </summary>
     public static void ReportCrash(string? stage, Exception ex)
     {
+        // The launcher listens for exactly one report. A crash the loader reports is rethrown and then also hits
+        // OnUnhandledException; a second send would just wait out the pipe connect timeout before the process dies.
+        if (Interlocked.Exchange(ref _crashReported, 1) != 0)
+            return;
+
         try
         {
             var report = $"Crash at {DateTime.Now:yyyy-MM-dd HH:mm:ss}{(stage is { } ? $" during stage '{stage}'" : "")}\n\n{ex}";
@@ -86,6 +96,14 @@ public static class SanabiLoaderEntry
         {
             Console.WriteLine($"Failed to report crash to launcher: {reportEx}");
         }
+    }
+
+    private static int _crashReported;
+
+    private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs args)
+    {
+        if (args.ExceptionObject is Exception ex)
+            ReportCrash($"unhandled exception on thread '{Thread.CurrentThread.Name ?? Environment.CurrentManagedThreadId.ToString()}'", ex);
     }
 
     private sealed class EngineHookHandle : IDisposable

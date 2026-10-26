@@ -397,7 +397,12 @@ public partial class Connector : ReactiveObject
             // from reflecting that the client has exited (e.g. on a normal, non-crashing quit, which
             // hits this path every time) - a plain `_ = FinalizeCrashReport(...)` would still run
             // that synchronous prefix inline before yielding.
-            _ = Task.Run(() => FinalizeCrashReport(waitForReport: clientProc != null && ClientExitedBadly));
+            //
+            // The listener is captured here rather than read from the fields later: by the time this finishes,
+            // the user may already have relaunched, and the fields then belong to that launch's listener.
+            var crashCancelSource = _crashCancelSource;
+            var crashReportTask = _crashReportTask;
+            _ = Task.Run(() => FinalizeCrashReport(crashCancelSource, crashReportTask, waitForReport: clientProc != null && ClientExitedBadly));
         }
 
         Status = ConnectionStatus.ClientExited;
@@ -441,19 +446,19 @@ public partial class Connector : ReactiveObject
     ///         forever waiting for a client that will never connect (e.g. a native crash, or one
     ///         that exited badly for a reason unrelated to the loader's own exception handling).
     /// </summary>
-    private async Task FinalizeCrashReport(bool waitForReport)
+    private async Task FinalizeCrashReport(CancellationTokenSource? crashCancelSource, Task<string?>? crashReportTask, bool waitForReport)
     {
-        if (_crashCancelSource == null || _crashReportTask == null)
+        if (crashCancelSource == null || crashReportTask == null)
             return;
 
         if (waitForReport)
-            await Task.WhenAny(_crashReportTask, Task.Delay(TimeSpan.FromSeconds(2)));
+            await Task.WhenAny(crashReportTask, Task.Delay(TimeSpan.FromSeconds(2)));
 
-        _crashCancelSource.Cancel();
+        crashCancelSource.Cancel();
 
         try
         {
-            CrashReport = await _crashReportTask;
+            CrashReport = await crashReportTask;
         }
         catch (Exception e)
         {
@@ -461,9 +466,11 @@ public partial class Connector : ReactiveObject
         }
         finally
         {
-            _crashCancelSource.Dispose();
-            _crashCancelSource = null;
-            _crashReportTask = null;
+            crashCancelSource.Dispose();
+
+            // Only clear the fields if a newer launch hasn't already replaced them with its own listener.
+            Interlocked.CompareExchange(ref _crashCancelSource, null, crashCancelSource);
+            Interlocked.CompareExchange(ref _crashReportTask, null, crashReportTask);
         }
     }
 
@@ -775,7 +782,14 @@ public partial class Connector : ReactiveObject
         _ = IpcManager.RunObjectPipeServer(IpcManager.SanabiIpcName, sanabiConfig, SanabiJsonContext.Default.SanabiConfig);
 
         // In case a previous launch's crash-report cleanup is still winding down in the background.
-        _crashCancelSource?.Cancel();
+        try
+        {
+            _crashCancelSource?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // That cleanup finished between the read and the cancel; nothing left to stop.
+        }
 
         _crashCancelSource = new CancellationTokenSource();
         _crashReportTask = IpcManager.RunStringPipeServer(IpcManager.SanabiCrashIpcName, _crashCancelSource.Token);

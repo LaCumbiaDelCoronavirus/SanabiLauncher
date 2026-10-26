@@ -33,6 +33,10 @@
     </Border>
 
     <DockPanel LastChildFill="true">
+      <!-- Shown whenever a proxy profile is in use, on the login menu too -->
+      <ContentControl DockPanel.Dock="Top"
+                      Content="{Binding ProxyBanner}"/>
+
       <!-- Header -->
       <Panel DockPanel.Dock="Top">
 
@@ -75,10 +79,6 @@
           </Grid>
         </DockPanel>
       </Panel>
-
-      <!-- Shown whenever a proxy profile is in use, on the login menu too -->
-      <ContentControl DockPanel.Dock="Top"
-                      Content="{Binding ProxyBanner}"/>
 
       <Grid>
         <!-- Main tabbed layout when not showing login menu -->

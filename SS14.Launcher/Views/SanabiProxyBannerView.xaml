@@ -3,9 +3,10 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:SS14.Launcher.ViewModels"
+             xmlns:views="clr-namespace:SS14.Launcher.Views"
              mc:Ignorable="d"
              d:DesignWidth="800"
-             d:DesignHeight="30"
+             d:DesignHeight="40"
              x:Class="SS14.Launcher.Views.SanabiProxyBannerView"
              IsVisible="{Binding IsVisible}">
   <Design.DataContext>
@@ -14,21 +15,51 @@
 
   <UserControl.Styles>
     <Style Selector="Button.ProxyBanner">
-      <Setter Property="Background" Value="#664E5070"/>
-      <Setter Property="HorizontalAlignment" Value="Stretch"/>
-      <Setter Property="HorizontalContentAlignment" Value="Center"/>
-      <Setter Property="Padding" Value="6,3"/>
-      <Setter Property="Margin" Value="0"/>
-      <Setter Property="CornerRadius" Value="0"/>
+      <Setter Property="Background"
+          Value="#CC2C2D3D"/>
+      <Setter Property="HorizontalAlignment"
+          Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment"
+          Value="Stretch"/>
+      <Setter Property="Padding"
+          Value="4,5"/>
+      <Setter Property="Margin"
+          Value="8,8,8,2"/>
     </Style>
     <Style Selector="Button.ProxyBanner.Working">
-      <Setter Property="Background" Value="#993E6C45"/>
+      <Setter Property="Background"
+          Value="#CC2D4232"/>
     </Style>
     <Style Selector="Button.ProxyBanner.Checking">
-      <Setter Property="Background" Value="#99806A1F"/>
+      <Setter Property="Background"
+          Value="#CC4A3F1C"/>
     </Style>
     <Style Selector="Button.ProxyBanner.Failed">
-      <Setter Property="Background" Value="#CC8B2A2A"/>
+      <Setter Property="Background"
+          Value="#E07A2626"/>
+    </Style>
+
+    <!-- The state colour is the point of the banner, so hovering only lightens it instead of replacing it. -->
+    <Style Selector="Button.ProxyBanner:pointerover /template/ views|AngleBox">
+      <Setter Property="Opacity"
+          Value="0.8"/>
+    </Style>
+
+    <Style Selector="Ellipse.StatusDot">
+      <Setter Property="Fill"
+          Value="#AAAAAA"/>
+    </Style>
+    <Style Selector="Ellipse.StatusDot.Working">
+      <Setter Property="Fill"
+          Value="#6FD27E"/>
+    </Style>
+    <Style Selector="Ellipse.StatusDot.Checking">
+      <Setter Property="Fill"
+          Value="#E8C64A"/>
+    </Style>
+    <Style Selector="Ellipse.StatusDot.Failed">
+      <Setter Property="Fill"
+          Value="#FF7A7A"/>
     </Style>
   </UserControl.Styles>
 
@@ -39,8 +70,35 @@
           Classes.Failed="{Binding IsFailed}"
           ToolTip.Tip="{Binding ToolTip}"
           Command="{Binding OpenProxyTab}">
-    <TextBlock Text="{Binding Text}"
-               FontWeight="Bold"
-               TextTrimming="CharacterEllipsis"/>
+    <Grid ColumnDefinitions="Auto, Auto, *, Auto">
+      <Ellipse Grid.Column="0"
+               Classes="StatusDot"
+               Classes.Working="{Binding IsWorking}"
+               Classes.Checking="{Binding IsChecking}"
+               Classes.Failed="{Binding IsFailed}"
+               Width="9"
+               Height="9"
+               VerticalAlignment="Center"
+               Margin="0,0,8,0"/>
+
+      <TextBlock Grid.Column="1"
+                 Text="{Binding ProfileName}"
+                 FontWeight="Bold"
+                 VerticalAlignment="Center"
+                 Margin="0,0,12,0"/>
+
+      <!-- Gives way first when the window is narrow, so the status always stays readable. -->
+      <TextBlock Grid.Column="2"
+                 Text="{Binding Details}"
+                 Foreground="{DynamicResource ThemeSubTextBrush}"
+                 VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis"/>
+
+      <TextBlock Grid.Column="3"
+                 Text="{Binding StatusText}"
+                 FontWeight="Bold"
+                 VerticalAlignment="Center"
+                 Margin="12,0,0,0"/>
+    </Grid>
   </Button>
 </UserControl>
