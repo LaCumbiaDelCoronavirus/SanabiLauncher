@@ -37,6 +37,12 @@
       <ContentControl DockPanel.Dock="Top"
                       Content="{Binding ProxyBanner}"/>
 
+      <!-- Shown while a connection / content download runs in the background -->
+      <Panel DockPanel.Dock="Top"
+             IsVisible="{Binding ConnectingVM.IsBackgrounded, FallbackValue=False}">
+        <v:SanabiConnectingBannerView DataContext="{Binding ConnectingVM}"/>
+      </Panel>
+
       <!-- Header -->
       <Panel DockPanel.Dock="Top">
 

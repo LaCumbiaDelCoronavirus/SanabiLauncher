@@ -11,7 +11,8 @@
   <Design.DataContext>
     <vm:ConnectingViewModel />
   </Design.DataContext>
-  <ContentControl Classes="OverlayBox">
+  <!-- Hidden while the connection runs in the background; the banner above the header takes over. -->
+  <ContentControl Classes="OverlayBox" IsVisible="{Binding IsForegrounded}">
     <Panel>
       <StackPanel Orientation="Vertical" IsVisible="{Binding !IsAskingPrivacyPolicy}">
         <TextBlock HorizontalAlignment="Center" Classes="NanoHeadingMedium" Text="{Binding TitleText}" />
@@ -31,6 +32,13 @@
                     Content="{loc:Loc connecting-cancel}"
                     Command="{Binding Cancel}"
                     IsVisible="{Binding !IsErrored}" />
+
+            <Button DockPanel.Dock="Left"
+                    Margin="2 0 0 0"
+                    Content="{loc:Loc connecting-background}"
+                    ToolTip.Tip="{loc:Loc connecting-background-tooltip}"
+                    Command="{Binding SendToBackground}"
+                    IsVisible="{Binding CanSendToBackground}" />
 
             <TextBlock DockPanel.Dock="Right" Margin="8 4 0 4" Text="{Binding ProgressText}"
                        TextWrapping="Wrap"

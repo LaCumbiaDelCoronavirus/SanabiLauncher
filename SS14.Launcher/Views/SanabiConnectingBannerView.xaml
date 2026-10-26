@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:views="clr-namespace:SS14.Launcher.Views"
+             xmlns:loc="clr-namespace:SS14.Launcher.Localization"
+             mc:Ignorable="d"
+             d:DesignWidth="800"
+             d:DesignHeight="40"
+             x:Class="SS14.Launcher.Views.SanabiConnectingBannerView">
+  <UserControl.Styles>
+    <Style Selector="Button.ConnectingBanner">
+      <Setter Property="Background"
+          Value="#CC1F3A4A"/>
+      <Setter Property="HorizontalAlignment"
+          Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment"
+          Value="Stretch"/>
+      <Setter Property="Padding"
+          Value="4,5"/>
+      <Setter Property="Margin"
+          Value="8,8,8,2"/>
+    </Style>
+
+    <Style Selector="Button.ConnectingBanner:pointerover /template/ views|AngleBox">
+      <Setter Property="Opacity"
+          Value="0.8"/>
+    </Style>
+  </UserControl.Styles>
+
+  <!-- A button, so clicking the banner brings the connecting overlay back. -->
+  <Button Classes="ConnectingBanner"
+          ToolTip.Tip="{loc:Loc connecting-banner-tooltip}"
+          Command="{Binding BringToForeground}">
+    <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto">
+      <TextBlock Grid.Column="0"
+                 Text="{Binding TitleText}"
+                 FontWeight="Bold"
+                 VerticalAlignment="Center"
+                 Margin="0,0,12,0"/>
+
+      <!-- Gives way first when the window is narrow, so the progress always stays readable. -->
+      <TextBlock Grid.Column="1"
+                 Text="{Binding BannerStatusText}"
+                 Foreground="{DynamicResource ThemeSubTextBrush}"
+                 VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis"/>
+
+      <TextBlock Grid.Column="2"
+                 Text="{Binding SpeedText}"
+                 IsVisible="{Binding !SpeedIndeterminate}"
+                 VerticalAlignment="Center"
+                 Margin="12,0,0,0"/>
+
+      <TextBlock Grid.Column="3"
+                 Text="{Binding ProgressText}"
+                 IsVisible="{Binding !ProgressIndeterminate}"
+                 VerticalAlignment="Center"
+                 Margin="8,0,0,0"/>
+
+      <ProgressBar Grid.Column="4"
+                   Maximum="1"
+                   Value="{Binding Progress}"
+                   IsIndeterminate="{Binding ProgressIndeterminate}"
+                   Width="140"
+                   MinWidth="0"
+                   VerticalAlignment="Center"
+                   Margin="12,0,2,0"/>
+    </Grid>
+  </Button>
+</UserControl>

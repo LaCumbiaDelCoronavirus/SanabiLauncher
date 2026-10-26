@@ -13,7 +13,7 @@ using SS14.Launcher.Views;
 
 namespace SS14.Launcher.ViewModels;
 
-public class ConnectingViewModel : ViewModelBase
+public partial class ConnectingViewModel : ViewModelBase
 {
     private readonly Connector _connector;
     private readonly Updater _updater;
@@ -75,6 +75,7 @@ public class ConnectingViewModel : ViewModelBase
             {
                 _updaterStatus = status;
                 this.RaisePropertyChanged(nameof(StatusText));
+                SanabiUpdaterStatusChanged();
             });
 
         this.WhenAnyValue(x => x._connector.Status)
@@ -88,6 +89,7 @@ public class ConnectingViewModel : ViewModelBase
                 this.RaisePropertyChanged(nameof(ProgressBarVisible));
                 this.RaisePropertyChanged(nameof(IsErrored));
                 this.RaisePropertyChanged(nameof(IsAskingPrivacyPolicy));
+                SanabiConnectorStatusChanged();
 
                 if (val == Connector.ConnectionStatus.ClientRunning
                     || val == Connector.ConnectionStatus.Cancelled
@@ -110,6 +112,7 @@ public class ConnectingViewModel : ViewModelBase
             {
                 this.RaisePropertyChanged(nameof(StatusText));
                 this.RaisePropertyChanged(nameof(IsErrored));
+                SanabiConnectorStatusChanged();
             });
 
         this.WhenAnyValue(x => x._connector.CrashReport)
@@ -246,6 +249,9 @@ public class ConnectingViewModel : ViewModelBase
 
     public static void StartConnect(MainWindowViewModel windowVm, string address, string? givenReason = null)
     {
+        if (TryForegroundExisting(windowVm))
+            return;
+
         var connector = new Connector();
         var vm = new ConnectingViewModel(connector, windowVm, givenReason, ConnectionType.Server);
         windowVm.ConnectingVM = vm;

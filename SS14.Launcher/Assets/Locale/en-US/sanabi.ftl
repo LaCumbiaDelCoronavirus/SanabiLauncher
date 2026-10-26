@@ -191,3 +191,9 @@ proxy-banner-status-failed = NOT WORKING, all connections blocked
 proxy-banner-tooltip = Click to manage proxy profiles.
 
 connecting-status-proxy-unavailable = The proxy profile in use isn't working, so connecting is blocked. Fix it or pick another profile in the Proxy tab.
+
+## Strings for the banner shown while a connection / content download runs in the background
+
+connecting-background = Hide
+connecting-background-tooltip = Keep downloading in the background. The game starts on its own once it's done.
+connecting-banner-tooltip = Click to show the connection window.

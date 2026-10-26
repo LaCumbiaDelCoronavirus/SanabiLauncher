@@ -270,3 +270,9 @@ proxy-banner-status-failed = НЕ РАБОТАЕТ, все подключени�
 proxy-banner-tooltip = Нажмите, чтобы управлять профилями прокси.
 
 connecting-status-proxy-unavailable = Используемый профиль прокси не работает, поэтому подключение заблокировано. Исправьте его или выберите другой профиль на вкладке «Прокси».
+
+## Strings for the banner shown while a connection / content download runs in the background
+
+connecting-background = Скрыть
+connecting-background-tooltip = Продолжить загрузку в фоне. Игра запустится сама, когда всё будет готово.
+connecting-banner-tooltip = Нажмите, чтобы показать окно подключения.

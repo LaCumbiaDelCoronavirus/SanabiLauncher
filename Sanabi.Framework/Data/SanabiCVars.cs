@@ -48,6 +48,15 @@ public static partial class SanabiCVars
     public static readonly CVarDef<bool> FancyBackground = CVarDef.Create("FancyBackground", true); // Geg
 
     /// <summary>
+    ///     If true, connecting to a server (and downloading its content) starts in the background, shown as a
+    ///         banner above the header instead of the connecting overlay. The overlay still pops up whenever it
+    ///         needs the user (errors, the privacy policy prompt).
+    ///
+    ///     Not exposed in the UI yet.
+    /// </summary>
+    public static readonly CVarDef<bool> ConnectInBackground = CVarDef.Create("ConnectInBackground", true);
+
+    /// <summary>
     ///     In hub settings, do we use the hub(s) that the launcher uses
     ///         as default?
     ///
