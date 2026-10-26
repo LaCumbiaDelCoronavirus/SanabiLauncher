@@ -28,4 +28,10 @@ public static partial class SanabiAccountCVars
     ///         is weird with ulong values.
     /// </summary>
     public static readonly CVarDef<long> SpoofingSeed = CVarDef.Create("SpoofingSeed", 1L);
+
+    /// <summary>
+    ///     <see cref="Proxy.SanabiProxyProfile.Id"/> of the proxy profile this account uses; empty (or an id that
+    ///         no longer exists) means no proxy. The profiles themselves are global: <see cref="SanabiCVars.ProxyProfiles"/>.
+    /// </summary>
+    public static readonly CVarDef<string> ProxyProfile = CVarDef.Create("ProxyProfile", string.Empty);
 }

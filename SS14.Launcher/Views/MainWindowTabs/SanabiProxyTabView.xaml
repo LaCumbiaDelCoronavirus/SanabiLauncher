@@ -1,0 +1,242 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:mainWindowTabs="clr-namespace:SS14.Launcher.ViewModels.MainWindowTabs"
+             xmlns:loc="clr-namespace:SS14.Launcher.Localization"
+             mc:Ignorable="d"
+             d:DesignWidth="800"
+             d:DesignHeight="450"
+             x:Class="SS14.Launcher.Views.MainWindowTabs.SanabiProxyTabView"
+             Name="SanabiProxyTab">
+  <Design.DataContext>
+    <mainWindowTabs:SanabiProxyTabViewModel/>
+  </Design.DataContext>
+
+  <UserControl.Styles>
+    <Style Selector="Border.ProxyStatus">
+      <Setter Property="Background" Value="#33464966"/>
+      <Setter Property="Padding" Value="8"/>
+      <Setter Property="Margin" Value="4"/>
+    </Style>
+    <Style Selector="Border.ProxyStatus.Working">
+      <Setter Property="Background" Value="#663E6C45"/>
+    </Style>
+    <Style Selector="Border.ProxyStatus.Checking">
+      <Setter Property="Background" Value="#66806A1F"/>
+    </Style>
+    <Style Selector="Border.ProxyStatus.Failed">
+      <Setter Property="Background" Value="#998B2A2A"/>
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Orientation="Vertical">
+      <TextBlock HorizontalAlignment="Center"
+                 Text="{loc:Loc tab-proxy-heading}"
+                 Classes="NanoHeading"/>
+      <TextBlock TextWrapping="Wrap"
+                 Text="{loc:Loc tab-proxy-desc}"
+                 Margin="8"/>
+
+      <!-- STATUS START -->
+
+      <Border Classes="ProxyStatus"
+              Classes.Working="{Binding IsWorking}"
+              Classes.Checking="{Binding IsChecking}"
+              Classes.Failed="{Binding IsFailed}">
+        <DockPanel>
+          <Button DockPanel.Dock="Right"
+                  VerticalAlignment="Center"
+                  Content="{loc:Loc tab-proxy-recheck}"
+                  IsVisible="{Binding IsProxyActive}"
+                  Command="{Binding Recheck}"/>
+          <StackPanel Orientation="Vertical">
+            <TextBlock Text="{Binding StatusText}"
+                       FontWeight="Bold"
+                       TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding StatusDetail}"
+                       IsVisible="{Binding StatusDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       TextWrapping="Wrap"/>
+          </StackPanel>
+        </DockPanel>
+      </Border>
+
+      <!-- PROFILES START -->
+
+      <TextBlock Text="{Binding ScopeText}"
+                 Classes="NanoHeadingSmall"
+                 Margin="4,8,4,4"/>
+
+      <ListBox ItemsSource="{Binding Entries}"
+               SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+               MaxHeight="220"
+               Margin="4">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Orientation="Vertical">
+              <TextBlock Text="{Binding Name}"
+                         FontWeight="Bold"/>
+              <TextBlock Text="{Binding Summary}"
+                         Classes="SubText"
+                         TextWrapping="Wrap"/>
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <StackPanel Orientation="Horizontal"
+                  Spacing="4"
+                  Margin="4">
+        <Button Content="{loc:Loc tab-proxy-add}"
+                Command="{Binding AddProfile}"/>
+        <Button Content="{loc:Loc tab-proxy-remove}"
+                IsEnabled="{Binding CanRemove}"
+                Command="{Binding RemoveSelectedProfile}"/>
+      </StackPanel>
+
+      <!-- EDITOR START -->
+
+      <Panel IsVisible="{Binding HasEditor}">
+        <StackPanel Orientation="Vertical"
+                    DataContext="{Binding Editor}">
+          <Separator Classes="horizontal"
+                     Margin="0,5,0,5"/>
+
+          <TextBlock HorizontalAlignment="Center"
+                     Text="{loc:Loc tab-proxy-editor-heading}"
+                     Classes="NanoHeadingMedium"/>
+
+          <TextBox Margin="8,4"
+                   Watermark="{loc:Loc tab-proxy-name}"
+                   Text="{Binding Name}"/>
+
+          <!-- Launcher proxy -->
+
+          <TextBlock Text="{loc:Loc tab-proxy-launcher-heading}"
+                     Classes="NanoHeadingSmall"
+                     Margin="4,8,4,0"/>
+          <CheckBox Margin="4"
+                    IsChecked="{Binding LauncherEnabled}"
+                    Content="{loc:Loc tab-proxy-launcher-enable}"/>
+          <TextBlock TextWrapping="Wrap"
+                     Text="{loc:Loc tab-proxy-launcher-desc}"
+                     Margin="8,0,8,4"/>
+
+          <StackPanel Orientation="Vertical"
+                      Spacing="4"
+                      Margin="8,0"
+                      IsEnabled="{Binding LauncherEnabled}">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Left"
+                         VerticalAlignment="Center"
+                         Margin="0,0,8,0"
+                         Text="{loc:Loc tab-proxy-protocol}"/>
+              <ComboBox ItemsSource="{Binding LauncherProtocols}"
+                        SelectedIndex="{Binding LauncherProtocolIndex}"
+                        MinWidth="120"/>
+            </DockPanel>
+            <Grid ColumnDefinitions="*,6,110">
+              <TextBox Grid.Column="0"
+                       Watermark="{loc:Loc tab-proxy-host}"
+                       Text="{Binding LauncherHost}"/>
+              <TextBox Grid.Column="2"
+                       Watermark="{loc:Loc tab-proxy-port}"
+                       Text="{Binding LauncherPort}"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,6,*">
+              <TextBox Grid.Column="0"
+                       Watermark="{loc:Loc tab-proxy-username}"
+                       Text="{Binding LauncherUsername}"/>
+              <TextBox Grid.Column="2"
+                       Watermark="{loc:Loc tab-proxy-password}"
+                       PasswordChar="•"
+                       IsEnabled="{Binding !LauncherIsSocks4}"
+                       Text="{Binding LauncherPassword}"/>
+            </Grid>
+            <TextBlock TextWrapping="Wrap"
+                       Classes="SubText"
+                       IsVisible="{Binding LauncherIsSocks4}"
+                       Text="{loc:Loc tab-proxy-socks4-password-note}"/>
+          </StackPanel>
+
+          <!-- Game proxy -->
+
+          <TextBlock Text="{loc:Loc tab-proxy-game-heading}"
+                     Classes="NanoHeadingSmall"
+                     Margin="4,12,4,0"/>
+          <CheckBox Margin="4"
+                    IsChecked="{Binding GameEnabled}"
+                    Content="{loc:Loc tab-proxy-game-enable}"/>
+          <TextBlock TextWrapping="Wrap"
+                     Text="{loc:Loc tab-proxy-game-desc}"
+                     Margin="8,0,8,4"/>
+
+          <StackPanel Orientation="Vertical"
+                      Spacing="4"
+                      Margin="8,0">
+            <DockPanel IsEnabled="{Binding GameEnabled}">
+              <TextBlock DockPanel.Dock="Left"
+                         VerticalAlignment="Center"
+                         Margin="0,0,8,0"
+                         Text="{loc:Loc tab-proxy-protocol}"/>
+              <TextBlock VerticalAlignment="Center"
+                         Text="{loc:Loc tab-proxy-protocol-socks5-only}"/>
+            </DockPanel>
+            <Grid ColumnDefinitions="*,6,110"
+                  IsEnabled="{Binding GameEnabled}">
+              <TextBox Grid.Column="0"
+                       Watermark="{loc:Loc tab-proxy-host}"
+                       Text="{Binding GameHost}"/>
+              <TextBox Grid.Column="2"
+                       Watermark="{loc:Loc tab-proxy-port}"
+                       Text="{Binding GamePort}"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,6,*"
+                  IsEnabled="{Binding GameEnabled}">
+              <TextBox Grid.Column="0"
+                       Watermark="{loc:Loc tab-proxy-username}"
+                       Text="{Binding GameUsername}"/>
+              <TextBox Grid.Column="2"
+                       Watermark="{loc:Loc tab-proxy-password}"
+                       PasswordChar="•"
+                       Text="{Binding GamePassword}"/>
+            </Grid>
+            <Button HorizontalAlignment="Left"
+                    Content="{loc:Loc tab-proxy-copy-launcher}"
+                    IsEnabled="{Binding CanCopyLauncherToGame}"
+                    Command="{Binding CopyLauncherToGame}"/>
+          </StackPanel>
+
+          <!-- Save -->
+
+          <TextBlock TextWrapping="Wrap"
+                     Classes="SubText"
+                     Margin="8,12,8,4"
+                     Text="{loc:Loc tab-proxy-credentials-note}"/>
+
+          <TextBlock TextWrapping="Wrap"
+                     Foreground="Red"
+                     FontWeight="Bold"
+                     Margin="8,4"
+                     IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                     Text="{Binding ErrorText}"/>
+
+          <StackPanel Orientation="Horizontal"
+                      Spacing="4"
+                      Margin="8,4,8,10">
+            <Button Content="{loc:Loc tab-proxy-save}"
+                    Command="{Binding Save}"/>
+            <Button Content="{loc:Loc tab-proxy-revert}"
+                    IsEnabled="{Binding IsDirty}"
+                    Command="{Binding Revert}"/>
+            <TextBlock VerticalAlignment="Center"
+                       Classes="SubText"
+                       IsVisible="{Binding IsDirty}"
+                       Text="{loc:Loc tab-proxy-unsaved}"/>
+          </StackPanel>
+        </StackPanel>
+      </Panel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

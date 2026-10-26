@@ -52,6 +52,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
     public ServerListTabViewModel ServersTab { get; }
     public NewsTabViewModel NewsTab { get; }
     public OptionsTabViewModel OptionsTab { get; }
+    public SanabiProxyTabViewModel ProxyTab { get; }
+    public SanabiProxyBannerViewModel ProxyBanner { get; }
 
     public MainWindowViewModel()
     {
@@ -64,6 +66,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         NewsTab = new NewsTabViewModel();
         HomeTab = new HomePageViewModel(this);
         OptionsTab = new OptionsTabViewModel(this);
+        ProxyTab = new SanabiProxyTabViewModel();
+        ProxyBanner = new SanabiProxyBannerViewModel(this);
 
         var tabs = new List<MainWindowTabViewModel>();
         tabs.Add(HomeTab);
@@ -71,6 +75,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
         //tabs.Add(NewsTab);
         tabs.Add(OptionsTab);
         tabs.Add(new SanabiTabViewModel(this));
+        tabs.Add(ProxyTab);
 #if DEVELOPMENT
         tabs.Add(new DevelopmentTabViewModel());
 #endif
@@ -406,6 +411,15 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
     public void SelectTabServers()
     {
         SelectedIndex = Tabs.IndexOf(ServersTab);
+    }
+
+    public void SelectTabProxy()
+    {
+        // The tabs are hidden behind the login menu; leave it so the tab is actually visible.
+        if (ShowLoginMenu)
+            SetLoginMenuShowing(false);
+
+        SelectedIndex = Tabs.IndexOf(ProxyTab);
     }
 
     public void TrySwitchToAccount(LoggedInAccount account)

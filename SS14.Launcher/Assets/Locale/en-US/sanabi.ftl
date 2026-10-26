@@ -131,3 +131,62 @@ tab-sanabi-debug-mode-desc = Debug mode for Harmony. If on, a dump of IL logs wi
 tab-sanabi-wait-for-debugger = Wait for debugger to attach before starting game
 tab-sanabi-wait-for-debugger-desc = After launching the game process, should the game wait for a debugger to attach before doing anything? Only use if you know what you're doing.
 tab-sanabi-open-data-directory = Open Launcher Data Directory
+
+## Strings for the "Proxy" tab
+
+tab-proxy-title = Proxy
+tab-proxy-heading = Proxy profiles
+tab-proxy-desc = A profile routes the launcher and/or the game through proxies. Profiles are shared between accounts; each account remembers which one it uses, and new accounts start with none. While a profile is in use, nothing connects until its proxies pass a check, and if any of them stops working, all connections are blocked until it works again or you pick another profile.
+tab-proxy-scope-account = Profile used by account { $username }:
+tab-proxy-scope-logged-out = Profile used while logged out:
+tab-proxy-no-profile = No proxy
+tab-proxy-no-profile-summary = Everything connects directly.
+# Shown under each profile in the list
+tab-proxy-profile-summary = Launcher: { $launcher } · Game: { $game }
+tab-proxy-default-name = Profile { $number }
+tab-proxy-add = Add profile
+tab-proxy-remove = Remove profile
+tab-proxy-recheck = Check now
+tab-proxy-status-off = No proxy in use. Connections are direct.
+tab-proxy-status-checking = Checking the proxies… connections wait until the check finishes.
+tab-proxy-status-working = Proxies working (last checked { $time }).
+tab-proxy-status-failed = Proxy not working: all connections are blocked.
+tab-proxy-status-rechecking = (re-checking…)
+tab-proxy-editor-heading = Edit profile
+tab-proxy-name = Profile name
+tab-proxy-launcher-heading = Launcher proxy
+tab-proxy-launcher-enable = Send launcher traffic through a proxy
+tab-proxy-launcher-desc = Everything the launcher itself sends: hub and server lists, server info, logins, game downloads. Supports HTTP, HTTPS, SOCKS4, SOCKS4a and SOCKS5. Server pings are turned off while any proxy is in use, since they can't go through one.
+tab-proxy-game-heading = Game proxy
+tab-proxy-game-enable = Send game traffic through a proxy
+tab-proxy-game-desc = The game's UDP connection to the server, plus its own web requests (such as the auth server check while joining). Must be SOCKS5, the only common proxy protocol that carries UDP. Without a game proxy the game connects directly, even if the launcher is proxied.
+tab-proxy-protocol = Protocol:
+tab-proxy-protocol-socks5-only = SOCKS5 (TCP + UDP)
+tab-proxy-host = Host
+tab-proxy-port = Port
+tab-proxy-username = Username (optional)
+tab-proxy-password = Password (optional)
+tab-proxy-socks4-password-note = SOCKS4/4a have no passwords; only the username is sent, as the user ID.
+tab-proxy-copy-launcher = Copy from launcher proxy
+tab-proxy-credentials-note = Proxy usernames and passwords are stored unencrypted in the launcher's settings.
+tab-proxy-save = Save
+tab-proxy-revert = Revert
+tab-proxy-unsaved = Unsaved changes
+tab-proxy-which-launcher = Launcher
+tab-proxy-which-game = Game
+tab-proxy-error-name = Give the profile a name.
+tab-proxy-error-bad-host = { $which } proxy: enter a host name or IP address.
+tab-proxy-error-bad-port = { $which } proxy: the port must be a number from 1 to 65535.
+tab-proxy-error-no-udp = The game proxy must be SOCKS5.
+tab-proxy-error-credentials-too-long = { $which } proxy: the username and password can be at most 255 bytes each.
+
+## Strings for the proxy banner shown under the header while a proxy profile is in use
+
+proxy-banner-text = Proxy: { $name } · Launcher: { $launcher } · Game: { $game } · { $status }
+proxy-banner-direct = direct
+proxy-banner-status-working = working
+proxy-banner-status-checking = checking…
+proxy-banner-status-failed = NOT WORKING, all connections blocked
+proxy-banner-tooltip = Click to manage proxy profiles.
+
+connecting-status-proxy-unavailable = The proxy profile in use isn't working, so connecting is blocked. Fix it or pick another profile in the Proxy tab.

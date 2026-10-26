@@ -18,12 +18,14 @@ using ReactiveUI;
 using Sanabi.Framework.Data;
 using Sanabi.Framework.Game.Managers;
 using Sanabi.Framework.Game.Patches;
+using Sanabi.Framework.Proxy;
 using Serilog;
 using Splat;
 using SS14.Launcher.Api;
 using SS14.Launcher.Models.Data;
 using SS14.Launcher.Models.EngineManager;
 using SS14.Launcher.Models.Logins;
+using SS14.Launcher.Models.SanabiProxy;
 using SS14.Launcher.Utility;
 
 namespace SS14.Launcher.Models;
@@ -38,6 +40,7 @@ public partial class Connector : ReactiveObject
     private readonly DataManager _cfg;
     private readonly LoginManager _loginManager;
     private readonly IEngineManager _engineManager;
+    private readonly SanabiProxyManager _proxyManager;
 
     private ConnectionStatus _status = ConnectionStatus.None;
     private bool _clientExitedBadly;
@@ -56,6 +59,7 @@ public partial class Connector : ReactiveObject
         _cfg = Locator.Current.GetRequiredService<DataManager>();
         _loginManager = Locator.Current.GetRequiredService<LoginManager>();
         _engineManager = Locator.Current.GetRequiredService<IEngineManager>();
+        _proxyManager = Locator.Current.GetRequiredService<SanabiProxyManager>();
         _http = Locator.Current.GetRequiredService<HttpClient>();
     }
 
@@ -148,6 +152,8 @@ public partial class Connector : ReactiveObject
     private async Task ConnectInternalAsync(string address, CancellationToken cancel)
     {
         Status = ConnectionStatus.Connecting;
+
+        await EnsureProxyAllowedAsync(cancel);
 
         var (info, parsedAddr, infoAddr) = await GetServerInfoAsync(address, cancel);
 
@@ -242,6 +248,8 @@ public partial class Connector : ReactiveObject
 
     private async Task LaunchContentBundleInternal(IStorageFile file, CancellationToken cancel)
     {
+        await EnsureProxyAllowedAsync(cancel);
+
         Status = ConnectionStatus.Updating;
 
         ContentLaunchInfo installation;
@@ -334,7 +342,23 @@ public partial class Connector : ReactiveObject
     {
         Status = ConnectionStatus.StartingClient;
 
-        var clientProc = await ConnectLaunchClient(launchInfo, info, buildInfo, connectAddress, parsedAddr, contentBundle);
+        // Checked again: the update before this can take long enough for the proxy to have gone down.
+        await EnsureProxyAllowedAsync(cancel);
+
+        // Captured once, so the relay and the game's own HTTP proxy can't disagree if the user switches
+        // profiles mid-launch.
+        var gameProxy = _proxyManager.ActiveProfile?.Game;
+        await using var relay = gameProxy != null && connectAddress != null
+            ? await StartGameRelayAsync(gameProxy, connectAddress, cancel)
+            : null;
+
+        if (relay != null)
+        {
+            // The game only ever learns the relay's loopback address, so it has no direct route to the server.
+            connectAddress = new UriBuilder("udp", relay.LocalEndPoint.Address.ToString(), relay.LocalEndPoint.Port).Uri;
+        }
+
+        var clientProc = await ConnectLaunchClient(launchInfo, info, buildInfo, connectAddress, parsedAddr, contentBundle, gameProxy);
 
         try
         {
@@ -379,6 +403,38 @@ public partial class Connector : ReactiveObject
         Status = ConnectionStatus.ClientExited;
     }
 
+    /// <exception cref="ConnectException">The active proxy profile isn't working.</exception>
+    private async Task EnsureProxyAllowedAsync(CancellationToken cancel)
+    {
+        try
+        {
+            await _proxyManager.EnsureTrafficAllowedAsync(cancel);
+        }
+        catch (SanabiProxyBlockedException e)
+        {
+            throw new ConnectException(ConnectionStatus.ProxyUnavailable, e);
+        }
+    }
+
+    private async Task<SanabiSocks5UdpRelay> StartGameRelayAsync(SanabiProxyEndpoint gameProxy, Uri connectAddress, CancellationToken cancel)
+    {
+        var port = connectAddress.Port > 0 ? connectAddress.Port : Global.DefaultServerPort;
+
+        try
+        {
+            var relay = await SanabiSocks5UdpRelay.StartAsync(gameProxy, connectAddress.IdnHost, port, cancel);
+            relay.AssociationLost += _ => _proxyManager.ReportPossibleFailure();
+
+            Log.Information("Game UDP to {Address} is relayed through {Proxy} via {Local}", connectAddress, gameProxy.DisplayString, relay.LocalEndPoint);
+            return relay;
+        }
+        catch (SanabiProxyException e)
+        {
+            _proxyManager.ReportPossibleFailure();
+            throw new ConnectException(ConnectionStatus.ProxyUnavailable, e);
+        }
+    }
+
     /// <summary>
     ///     Stops listening for a crash report from the client process. If one may be in flight,
     ///         gives it a short grace period to arrive before giving up, so this can never hang
@@ -416,7 +472,8 @@ public partial class Connector : ReactiveObject
         ServerBuildInformation? serverBuildInformation,
         Uri? connectAddress,
         Uri? parsedAddr,
-        bool contentBundle)
+        bool contentBundle,
+        SanabiProxyEndpoint? gameProxy)
     {
         var cVars = new List<(string, string)>();
 
@@ -514,7 +571,7 @@ public partial class Connector : ReactiveObject
             }
 
             // Launch client.
-            return await LaunchClient(launchInfo, args, cVars);
+            return await LaunchClient(launchInfo, args, cVars, gameProxy);
         }
         catch (Exception e)
         {
@@ -625,7 +682,8 @@ public partial class Connector : ReactiveObject
     private async Task<Process?> LaunchClient(
         ContentLaunchInfo launchInfo,
         IEnumerable<string> extraArgs,
-        List<(string, string)> env)
+        List<(string, string)> env,
+        SanabiProxyEndpoint? gameProxy)
     {
         var pubKey = LauncherPaths.PathPublicKey;
         var engineVersion = launchInfo.ModuleInfo.Single(x => x.Module == "Robust").Version;
@@ -712,7 +770,9 @@ public partial class Connector : ReactiveObject
 
         Log.Debug("Launch command: {LaunchCommand}", commandBuilder.ToString());
 
-        _ = IpcManager.RunObjectPipeServer(IpcManager.SanabiIpcName, new SanabiConfig().Configure(_cfg), SanabiJsonContext.Default.SanabiConfig);
+        var sanabiConfig = new SanabiConfig().Configure(_cfg);
+        sanabiConfig.GameProxy = gameProxy;
+        _ = IpcManager.RunObjectPipeServer(IpcManager.SanabiIpcName, sanabiConfig, SanabiJsonContext.Default.SanabiConfig);
 
         // In case a previous launch's crash-report cleanup is still winding down in the background.
         _crashCancelSource?.Cancel();
@@ -958,7 +1018,8 @@ public partial class Connector : ReactiveObject
         ClientRunning,
         ClientExited,
         Cancelled,
-        NotAContentBundle
+        NotAContentBundle,
+        ProxyUnavailable
     }
 
     private sealed class ConnectException : Exception

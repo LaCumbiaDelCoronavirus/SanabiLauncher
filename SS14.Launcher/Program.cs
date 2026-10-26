@@ -22,6 +22,7 @@ using SS14.Launcher.Models.ServerStatus;
 using SS14.Launcher.Models.EngineManager;
 using SS14.Launcher.Models.Logins;
 using SS14.Launcher.Models.OverrideAssets;
+using SS14.Launcher.Models.SanabiProxy;
 using SS14.Launcher.Utility;
 using TerraFX.Interop.Windows;
 using LogEventLevel = Serilog.Events.LogEventLevel;
@@ -213,7 +214,9 @@ internal static class Program
     {
         var locator = Locator.CurrentMutable;
 
-        var http = HappyEyeballsHttp.CreateHttpClient();
+        // Before the HTTP client exists: every request it makes goes through the proxy gate.
+        var proxyManager = new SanabiProxyManager(cfg);
+        var http = SanabiProxyHttp.CreateHttpClient(proxyManager);
         http.DefaultRequestHeaders.UserAgent.Add(
             new ProductInfoHeaderValue(LauncherVersion.Name, LauncherVersion.Version?.ToString()));
 
@@ -246,6 +249,7 @@ internal static class Program
         var loginManager = new LoginManager(cfg, authApi);
         SanabiAuthManager.Initialize(cfg);
         loginManager.AfterActiveAccountUpdate += SanabiAuthManager.OnAccountUpdated;
+        proxyManager.Initialize(loginManager);
         loginManager.Initialise();
 
         var engineManager = new EngineManagerDynamic();
@@ -258,6 +262,7 @@ internal static class Program
         locator.RegisterConstant(hubApi);
         locator.RegisterConstant(new ServerListCache());
         locator.RegisterConstant(loginManager);
+        locator.RegisterConstant(proxyManager);
         locator.RegisterConstant(overrideAssets);
         locator.RegisterConstant(launcherInfo);
 

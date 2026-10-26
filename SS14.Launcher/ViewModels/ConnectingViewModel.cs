@@ -33,6 +33,7 @@ public class ConnectingViewModel : ViewModelBase
     public bool IsErrored => _connectorStatus == Connector.ConnectionStatus.ConnectionFailed ||
                              _connectorStatus == Connector.ConnectionStatus.UpdateError ||
                              _connectorStatus == Connector.ConnectionStatus.NotAContentBundle ||
+                             _connectorStatus == Connector.ConnectionStatus.ProxyUnavailable ||
                              _connectorStatus == Connector.ConnectionStatus.ClientExited &&
                              _connector.ClientExitedBadly;
 
@@ -170,7 +171,8 @@ public class ConnectingViewModel : ViewModelBase
                                       _connectorStatus != Connector.ConnectionStatus.ClientRunning &&
                                       _connectorStatus != Connector.ConnectionStatus.ConnectionFailed &&
                                       _connectorStatus != Connector.ConnectionStatus.UpdateError &&
-                                      _connectorStatus != Connector.ConnectionStatus.NotAContentBundle;
+                                      _connectorStatus != Connector.ConnectionStatus.NotAContentBundle &&
+                                      _connectorStatus != Connector.ConnectionStatus.ProxyUnavailable;
 
     public bool SpeedIndeterminate => _connectorStatus != Connector.ConnectionStatus.Updating || _updaterSpeed == null;
 
@@ -211,6 +213,7 @@ public class ConnectingViewModel : ViewModelBase
             Connector.ConnectionStatus.ConnectionFailed => _loc.GetString("connecting-status-connection-failed"),
             Connector.ConnectionStatus.StartingClient => _loc.GetString("connecting-status-starting-client") + _reasonSuffix,
             Connector.ConnectionStatus.NotAContentBundle => _loc.GetString("connecting-status-not-a-content-bundle"),
+            Connector.ConnectionStatus.ProxyUnavailable => _loc.GetString("connecting-status-proxy-unavailable"),
             Connector.ConnectionStatus.ClientExited => _connector.ClientExitedBadly
                 ? _loc.GetString("connecting-status-client-crashed")
                 : "",

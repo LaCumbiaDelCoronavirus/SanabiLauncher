@@ -92,6 +92,22 @@ on the engine.
 - **`IpcManager`** — the named-pipe client side of the launcher↔game IPC (`SanabiIpcName` for config,
   `SanabiCrashIpcName` for crash reports).
 
+### Proxy profiles
+
+The Proxy tab's profiles (`Sanabi.Framework/Proxy/`, managed launcher-side by
+[`SanabiProxyManager`](SS14.Launcher/Models/SanabiProxy/SanabiProxyManager.cs)) route traffic **fail-closed**: while
+the selected profile is in use, nothing connects until its proxies pass a probe, and nothing connects while it fails.
+Never add a code path that falls back to a direct connection when a proxy is down.
+- **Launcher HTTP** — the shared `HttpClient` (built by `SanabiProxyHttp.CreateHttpClient`) asks the manager for the
+  current proxy on every request (`SanabiLauncherWebProxy`), and its guard handler throws
+  `SanabiProxyBlockedException` while the profile is down. Any new launcher network path must go through that
+  client; ICMP pings are skipped entirely while a proxy is active (`LazySanabiConfig.ProxyActive`).
+- **Game UDP** — Lidgren sends via raw `sendto`/`recvfrom` P/Invoke, which Harmony can't intercept. So `Connector`
+  starts a `SanabiSocks5UdpRelay` (SOCKS5 UDP ASSOCIATE) in the launcher process and gives the game the relay's
+  loopback address as `--connect-address`; the game never learns the real server address.
+- **Game HTTP** — `SanabiConfig.GameProxy` → `SanabiGameProxy.Apply` sets `HttpClient.DefaultProxy` in the game
+  process before the engine starts (the engine's `HttpClientHolder` leaves `Proxy` unset, so it inherits this).
+
 ### The patch-entry model
 
 Fork features are static methods tagged `[PatchEntry(PatchRunLevel.Engine | Content)]`
@@ -336,6 +352,8 @@ Current members:
   becomes active, then cleared.
 - **`AuthServers`** (`string`) — the account's auth-server URL set (vertical-bar-separated sets, comma-separated
   fallbacks); a sentinel default (`AuthServersDefaultSerializedNullEscapeValue`) means "unset, use the default".
+- **`ProxyProfile`** (`string`) — id of the proxy profile the account uses; empty (or a deleted id) means none. The
+  profiles themselves are global (`SanabiCVars.ProxyProfiles`); see "Proxy profiles" in §2.
 
 **Lifecycle.** Unlike global CVars (registered once in `InitializeCVars`), per-account entries are materialized
 lazily: when an account becomes active, `DataManager.BeforeActiveAccountUpdate` calls

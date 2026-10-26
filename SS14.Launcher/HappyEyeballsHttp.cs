@@ -41,15 +41,18 @@ public static class HappyEyeballsHttp
     //   or incremental DNS updates who cares about that.
     public static HttpClient CreateHttpClient(bool autoRedirect = true)
     {
-        var handler = new SocketsHttpHandler
+        return new HttpClient(CreateHttpHandler(autoRedirect: autoRedirect));
+    }
+
+    public static SocketsHttpHandler CreateHttpHandler(bool autoRedirect = true)
+    {
+        return new SocketsHttpHandler
         {
             ConnectCallback = OnConnect,
             AutomaticDecompression = DecompressionMethods.All,
             AllowAutoRedirect = autoRedirect,
             // PooledConnectionLifetime = TimeSpan.FromSeconds(1)
         };
-
-        return new HttpClient(handler);
     }
 
     private static async ValueTask<Stream> OnConnect(

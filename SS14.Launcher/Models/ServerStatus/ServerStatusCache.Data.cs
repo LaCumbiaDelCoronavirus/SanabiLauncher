@@ -38,6 +38,16 @@ public sealed class ServerStatusData : ObservableObject, IServerStatusData
     {
         TrueAddress = "Fetching ping…";
 
+        // ICMP can't go through a proxy, and the DNS lookup would happen outside it too.
+        if (LazySanabiConfig.ProxyActive)
+        {
+            TrueAddress = "N/A [hidden while a proxy profile is in use]";
+            _baseDisplayedPing = "N/A [pinging disabled while a proxy profile is in use]";
+
+            MiscDataUpdateCallback?.Invoke();
+            return;
+        }
+
         // Update IP
         var uri = await UpdateTrueIp();
         MiscDataUpdateCallback?.Invoke();

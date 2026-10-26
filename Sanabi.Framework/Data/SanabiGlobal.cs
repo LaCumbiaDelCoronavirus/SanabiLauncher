@@ -42,4 +42,27 @@ public static class SanabiGlobal
     ///     Maximum of random amount of time to pass between ping queries.
     /// </summary>
     public static readonly TimeSpan MaxPingQueryInterval = TimeSpan.FromMilliseconds(85);
+
+    /// <summary>
+    ///     Where proxy health probes open their test tunnel to. The auth server, since the launcher talks to it
+    ///         anyway; the probe only connects and never sends anything through.
+    /// </summary>
+    public const string ProxyProbeHost = "auth.spacestation14.com";
+
+    public const int ProxyProbePort = 443;
+
+    /// <summary>
+    ///     How long one proxy probe may take before the proxy counts as not working.
+    /// </summary>
+    public static readonly TimeSpan ProxyProbeTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    ///     How often a working proxy profile is re-probed.
+    /// </summary>
+    public static readonly TimeSpan ProxyHealthyRecheckInterval = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    ///     How often a failing proxy profile is re-probed, i.e. how quickly connections unblock once it recovers.
+    /// </summary>
+    public static readonly TimeSpan ProxyFailedRecheckInterval = TimeSpan.FromSeconds(5);
 }

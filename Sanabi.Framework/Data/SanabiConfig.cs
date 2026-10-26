@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using JetBrains.Annotations;
 using Sanabi.Framework.Game.Patches;
+using Sanabi.Framework.Proxy;
 
 namespace Sanabi.Framework.Data;
 
@@ -12,6 +13,7 @@ namespace Sanabi.Framework.Data;
 /// </summary>
 [JsonSerializable(typeof(SanabiConfig))]
 [JsonSerializable(typeof(List<string>))]
+[JsonSerializable(typeof(List<SanabiProxyProfile>))]
 public sealed partial class SanabiJsonContext : JsonSerializerContext;
 
 /// <summary>
@@ -44,6 +46,13 @@ public sealed class SanabiConfig
     ///         the old packed bit-flags field; order is not significant.
     /// </summary>
     public List<string> EnabledExternalMods { get; set; } = new();
+
+    /// <summary>
+    ///     SOCKS5 proxy the game's HTTP(S) goes through (see <see cref="SanabiGameProxy"/>), or null for none.
+    ///         Comes from the active proxy profile rather than a CVar, so the launcher's <c>Connector</c> sets it
+    ///         after <see cref="SanabiConfigExtensions.Configure"/>.
+    /// </summary>
+    public SanabiProxyEndpoint? GameProxy { get; set; }
 }
 
 public static class SanabiConfigExtensions

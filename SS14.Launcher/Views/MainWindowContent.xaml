@@ -76,6 +76,10 @@
         </DockPanel>
       </Panel>
 
+      <!-- Shown whenever a proxy profile is in use, on the login menu too -->
+      <ContentControl DockPanel.Dock="Top"
+                      Content="{Binding ProxyBanner}"/>
+
       <Grid>
         <!-- Main tabbed layout when not showing login menu -->
         <TabControl IsVisible="{Binding !ShowLoginMenu}"

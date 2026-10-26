@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:SS14.Launcher.ViewModels"
+             mc:Ignorable="d"
+             d:DesignWidth="800"
+             d:DesignHeight="30"
+             x:Class="SS14.Launcher.Views.SanabiProxyBannerView"
+             IsVisible="{Binding IsVisible}">
+  <Design.DataContext>
+    <vm:SanabiProxyBannerViewModel/>
+  </Design.DataContext>
+
+  <UserControl.Styles>
+    <Style Selector="Button.ProxyBanner">
+      <Setter Property="Background" Value="#664E5070"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="Padding" Value="6,3"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="CornerRadius" Value="0"/>
+    </Style>
+    <Style Selector="Button.ProxyBanner.Working">
+      <Setter Property="Background" Value="#993E6C45"/>
+    </Style>
+    <Style Selector="Button.ProxyBanner.Checking">
+      <Setter Property="Background" Value="#99806A1F"/>
+    </Style>
+    <Style Selector="Button.ProxyBanner.Failed">
+      <Setter Property="Background" Value="#CC8B2A2A"/>
+    </Style>
+  </UserControl.Styles>
+
+  <!-- A button, so clicking the banner opens the Proxy tab. -->
+  <Button Classes="ProxyBanner"
+          Classes.Working="{Binding IsWorking}"
+          Classes.Checking="{Binding IsChecking}"
+          Classes.Failed="{Binding IsFailed}"
+          ToolTip.Tip="{Binding ToolTip}"
+          Command="{Binding OpenProxyTab}">
+    <TextBlock Text="{Binding Text}"
+               FontWeight="Bold"
+               TextTrimming="CharacterEllipsis"/>
+  </Button>
+</UserControl>

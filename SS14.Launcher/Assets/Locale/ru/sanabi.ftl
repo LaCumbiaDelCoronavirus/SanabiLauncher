@@ -210,3 +210,62 @@ tab-sanabi-wait-for-debugger = Ждать подключения отладчи�
 tab-sanabi-wait-for-debugger-desc = После запуска процесса игры, должна ли игра ждать подключения отладчика перед выполнением каких-либо действий? Используйте только если знаете, что делаете.
 # Strings for the "Sanabi" tab
 tab-sanabi-open-data-directory = Открыть директорию данных лаунчера
+
+## Strings for the "Proxy" tab
+
+tab-proxy-title = Прокси
+tab-proxy-heading = Профили прокси
+tab-proxy-desc = Профиль направляет трафик лаунчера и/или игры через прокси. Профили общие для всех аккаунтов; каждый аккаунт запоминает, какой из них использует, а у новых аккаунтов профиля нет. Пока профиль используется, подключения ждут, пока его прокси не пройдут проверку, а если какой-то из них перестанет работать, все подключения блокируются, пока он снова не заработает или вы не выберете другой профиль.
+tab-proxy-scope-account = Профиль аккаунта { $username }:
+tab-proxy-scope-logged-out = Профиль, когда вход не выполнен:
+tab-proxy-no-profile = Без прокси
+tab-proxy-no-profile-summary = Все подключения напрямую.
+# Shown under each profile in the list
+tab-proxy-profile-summary = Лаунчер: { $launcher } · Игра: { $game }
+tab-proxy-default-name = Профиль { $number }
+tab-proxy-add = Добавить профиль
+tab-proxy-remove = Удалить профиль
+tab-proxy-recheck = Проверить сейчас
+tab-proxy-status-off = Прокси не используется. Подключения напрямую.
+tab-proxy-status-checking = Проверка прокси… подключения ждут окончания проверки.
+tab-proxy-status-working = Прокси работают (последняя проверка в { $time }).
+tab-proxy-status-failed = Прокси не работает: все подключения заблокированы.
+tab-proxy-status-rechecking = (повторная проверка…)
+tab-proxy-editor-heading = Редактирование профиля
+tab-proxy-name = Название профиля
+tab-proxy-launcher-heading = Прокси лаунчера
+tab-proxy-launcher-enable = Направлять трафик лаунчера через прокси
+tab-proxy-launcher-desc = Всё, что отправляет сам лаунчер: списки хабов и серверов, информация о серверах, вход в аккаунт, загрузка игры. Поддерживаются HTTP, HTTPS, SOCKS4, SOCKS4a и SOCKS5. Пока используется любой прокси, пинг серверов отключён, так как его нельзя провести через прокси.
+tab-proxy-game-heading = Прокси игры
+tab-proxy-game-enable = Направлять трафик игры через прокси
+tab-proxy-game-desc = UDP-подключение игры к серверу, а также её собственные веб-запросы (например, проверка на сервере авторизации при входе). Должен быть SOCKS5 — единственный распространённый протокол прокси, передающий UDP. Без прокси игры игра подключается напрямую, даже если лаунчер идёт через прокси.
+tab-proxy-protocol = Протокол:
+tab-proxy-protocol-socks5-only = SOCKS5 (TCP + UDP)
+tab-proxy-host = Хост
+tab-proxy-port = Порт
+tab-proxy-username = Имя пользователя (необязательно)
+tab-proxy-password = Пароль (необязательно)
+tab-proxy-socks4-password-note = У SOCKS4/4a нет паролей; отправляется только имя пользователя в качестве user ID.
+tab-proxy-copy-launcher = Скопировать из прокси лаунчера
+tab-proxy-credentials-note = Имена пользователей и пароли прокси хранятся в настройках лаунчера в незашифрованном виде.
+tab-proxy-save = Сохранить
+tab-proxy-revert = Отменить изменения
+tab-proxy-unsaved = Есть несохранённые изменения
+tab-proxy-which-launcher = Лаунчер
+tab-proxy-which-game = Игра
+tab-proxy-error-name = Укажите название профиля.
+tab-proxy-error-bad-host = Прокси ({ $which }): укажите имя хоста или IP-адрес.
+tab-proxy-error-bad-port = Прокси ({ $which }): порт должен быть числом от 1 до 65535.
+tab-proxy-error-no-udp = Прокси игры должен быть SOCKS5.
+tab-proxy-error-credentials-too-long = Прокси ({ $which }): имя пользователя и пароль — не более 255 байт каждый.
+
+## Strings for the proxy banner shown under the header while a proxy profile is in use
+
+proxy-banner-text = Прокси: { $name } · Лаунчер: { $launcher } · Игра: { $game } · { $status }
+proxy-banner-direct = напрямую
+proxy-banner-status-working = работает
+proxy-banner-status-checking = проверка…
+proxy-banner-status-failed = НЕ РАБОТАЕТ, все подключения заблокированы
+proxy-banner-tooltip = Нажмите, чтобы управлять профилями прокси.
+
+connecting-status-proxy-unavailable = Используемый профиль прокси не работает, поэтому подключение заблокировано. Исправьте его или выберите другой профиль на вкладке «Прокси».

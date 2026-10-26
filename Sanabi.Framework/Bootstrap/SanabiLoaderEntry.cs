@@ -4,6 +4,7 @@ using Sanabi.Framework.Data;
 using Sanabi.Framework.Game.Managers;
 using Sanabi.Framework.Game.Patches;
 using Sanabi.Framework.Patching;
+using Sanabi.Framework.Proxy;
 
 namespace Sanabi.Framework.Bootstrap;
 
@@ -31,6 +32,9 @@ public static class SanabiLoaderEntry
 
         // Wait until properly connected: receive the per-process config from the launcher over the pipe.
         SanabiConfig.ProcessConfig = IpcManager.RunObjectPipeClient(IpcManager.SanabiIpcName, SanabiJsonContext.Default.SanabiConfig);
+
+        // Independent of the patch run level: a proxy must apply even with patching off.
+        SanabiGameProxy.Apply(SanabiConfig.ProcessConfig);
 
         if (SanabiConfig.ProcessConfig.WaitForDebugger)
         {
