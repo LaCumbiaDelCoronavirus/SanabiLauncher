@@ -43,7 +43,7 @@ public sealed class LauncherInfoManager(HttpClient httpClient)
 
     private async Task LoadData()
     {
-        var cancellationToken = new CancellationTokenSource(2200).Token;
+        var cancellationToken = new CancellationTokenSource(4500).Token;
         LauncherInfoModel? info;
         try
         {
