@@ -53,6 +53,13 @@ public sealed class SanabiConfig
     ///         after <see cref="SanabiConfigExtensions.Configure"/>.
     /// </summary>
     public SanabiProxyEndpoint? GameProxy { get; set; }
+
+    /// <summary>
+    ///     Pipe the game holds open for its whole life so the launcher can tell when it's gone (see
+    ///         <see cref="Game.Managers.IpcManager.RunLifelinePipeServer"/>). Unique per launch, set by the launcher's
+    ///         <c>Connector</c>, so simultaneous clients can't answer for each other.
+    /// </summary>
+    public string? LifelinePipeName { get; set; }
 }
 
 public static class SanabiConfigExtensions

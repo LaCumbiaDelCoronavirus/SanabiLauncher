@@ -38,6 +38,8 @@ public static class SanabiLoaderEntry
         // Wait until properly connected: receive the per-process config from the launcher over the pipe.
         SanabiConfig.ProcessConfig = IpcManager.RunObjectPipeClient(IpcManager.SanabiIpcName, SanabiJsonContext.Default.SanabiConfig);
 
+        ConnectLifeline(SanabiConfig.ProcessConfig.LifelinePipeName);
+
         // Independent of the patch run level: a proxy must apply even with patching off.
         SanabiGameProxy.Apply(SanabiConfig.ProcessConfig);
 
@@ -99,6 +101,41 @@ public static class SanabiLoaderEntry
     }
 
     private static int _crashReported;
+
+    // Held for the whole process lifetime: the OS closing this is how the launcher learns the game died.
+    private static Stream? _lifeline;
+
+    /// <summary>
+    ///     Best-effort, like crash reporting: a launcher that can't be reached must not stop the game.
+    /// </summary>
+    private static void ConnectLifeline(string? pipeName)
+    {
+        if (string.IsNullOrEmpty(pipeName))
+            return;
+
+        try
+        {
+            _lifeline = IpcManager.RunLifelinePipeClient(pipeName);
+            AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to connect lifeline to launcher: {ex}");
+        }
+    }
+
+    private static void OnProcessExit(object? sender, EventArgs args)
+    {
+        try
+        {
+            if (_lifeline is { } lifeline)
+                IpcManager.WriteLifelineExit(lifeline, Environment.ExitCode);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to tell launcher about exit: {ex}");
+        }
+    }
 
     private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs args)
     {

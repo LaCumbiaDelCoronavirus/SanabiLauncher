@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 
@@ -13,23 +14,40 @@ public static class IpcManager
     public const string SanabiCrashIpcName = "sanabiss14launchercrashipc";
 
     /// <summary>
+    ///     How long the game waits for the launcher's config pipe. Failing is better than hanging forever with no
+    ///         window: the launcher only gets told about the former.
+    /// </summary>
+    public const int ObjectPipeConnectTimeoutMs = 30_000;
+
+    private const string LifelineExitPrefix = "exit:";
+
+    /// <summary>
     ///     Connects and starts running the server pipe, writing <paramref name="value"/> as a UTF-8 JSON payload.
     ///         Unlike a raw struct copy this handles variable-length data (strings, lists, nested objects), so the
     ///         payload type need not be a blittable struct. The server waits until the client has drained the
-    ///         payload, then disconnects.
+    ///         payload, then disconnects. The server is always released, so a launch whose client never connected
+    ///         can be cancelled with <paramref name="cancel"/> without leaving the pipe name taken for the next one.
     /// </summary>
-    public static async Task RunObjectPipeServer<TDatum>(string pipeName, TDatum value, JsonTypeInfo<TDatum> typeInfo)
+    public static async Task RunObjectPipeServer<TDatum>(
+        string pipeName,
+        TDatum value,
+        JsonTypeInfo<TDatum> typeInfo,
+        CancellationToken cancel = default)
     {
-        var server = InitiateServer(pipeName, pipeDirection: PipeDirection.Out);
-        await server.WaitForConnectionAsync();
+        await using var server = InitiateServer(pipeName, pipeDirection: PipeDirection.Out);
+        await server.WaitForConnectionAsync(cancel);
 
         var data = JsonSerializer.SerializeToUtf8Bytes(value, typeInfo);
-        await server.WriteAsync(data);
-        await server.FlushAsync();
-        server.WaitForPipeDrain();
+        await server.WriteAsync(data, cancel);
+        await server.FlushAsync(cancel);
+
+        // WaitForPipeDrain throws PlatformNotSupportedException on Unix, and isn't needed there: pipes are sockets, so
+        // closing still delivers everything already written. The client reads until EOF, so reaching the close below
+        // is what lets it continue.
+        if (OperatingSystem.IsWindows())
+            server.WaitForPipeDrain();
 
         server.Disconnect();
-        server.Dispose();
     }
 
     /// <summary>
@@ -86,10 +104,10 @@ public static class IpcManager
     ///         <see cref="RunObjectPipeServer{TDatum}"/>, deserializing it to <typeparamref name="TDatum"/>.
     ///         Synchronous; it is assumed that the server is already running.
     /// </summary>
-    public static TDatum RunObjectPipeClient<TDatum>(string pipeName, JsonTypeInfo<TDatum> typeInfo)
+    public static TDatum RunObjectPipeClient<TDatum>(string pipeName, JsonTypeInfo<TDatum> typeInfo, int timeoutMs = ObjectPipeConnectTimeoutMs)
     {
         var client = InitiateClient(pipeName, pipeDirection: PipeDirection.In);
-        client.Connect();
+        client.Connect(timeoutMs);
 
         using var buffer = new MemoryStream();
         client.CopyTo(buffer); // reads until the server finishes writing and disconnects
@@ -97,6 +115,63 @@ public static class IpcManager
 
         return JsonSerializer.Deserialize(buffer.ToArray(), typeInfo)
             ?? throw new InvalidOperationException($"Received a null/empty {typeof(TDatum).Name} payload over pipe '{pipeName}'.");
+    }
+
+    /// <summary>
+    ///     Waits for the game to connect its lifeline, then holds the connection until the game goes away. The OS
+    ///         closes the pipe however the process ends, so this also sees deaths that run no managed code at all.
+    ///         This is what tracks the game when the launcher has no process handle for it (macOS, via <c>open</c>).
+    /// </summary>
+    /// <param name="onConnected">Invoked once the game is connected: it reached the Sanabi entry point.</param>
+    /// <returns>The exit code the game reported, or <c>null</c> if the pipe closed without one (it crashed).</returns>
+    public static async Task<int?> RunLifelinePipeServer(string pipeName, Action onConnected, CancellationToken cancel = default)
+    {
+        await using var server = InitiateServer(pipeName, pipeDirection: PipeDirection.In);
+        await server.WaitForConnectionAsync(cancel);
+        onConnected();
+
+        using var reader = new StreamReader(server);
+        int? exitCode = null;
+
+        try
+        {
+            while (await reader.ReadLineAsync(cancel) is { } line)
+                exitCode = ParseLifelineLine(line) ?? exitCode;
+        }
+        catch (IOException)
+        {
+            // A broken pipe is just how some platforms report the other side dying.
+        }
+
+        return exitCode;
+    }
+
+    /// <summary>
+    ///     Connects the game's end of the lifeline. The caller must keep the returned stream referenced for the
+    ///         process lifetime: closing it is what tells the launcher the game is gone.
+    /// </summary>
+    public static Stream RunLifelinePipeClient(string pipeName, int timeoutMs = 3000)
+    {
+        var client = InitiateClient(pipeName, pipeDirection: PipeDirection.Out);
+        client.Connect(timeoutMs);
+        return client;
+    }
+
+    /// <summary>
+    ///     Tells the launcher this is an orderly exit, as opposed to the lifeline just dropping.
+    /// </summary>
+    public static void WriteLifelineExit(Stream lifeline, int exitCode)
+    {
+        lifeline.Write(Encoding.UTF8.GetBytes($"{LifelineExitPrefix}{exitCode}\n"));
+        lifeline.Flush();
+    }
+
+    private static int? ParseLifelineLine(string line)
+    {
+        return line.StartsWith(LifelineExitPrefix, StringComparison.Ordinal)
+               && int.TryParse(line.AsSpan(LifelineExitPrefix.Length), out var exitCode)
+            ? exitCode
+            : null;
     }
 
     /// <summary>
@@ -151,7 +226,8 @@ public static class IpcManager
     ///     Creates a <see cref="NamedPipeServerStream"/>.
     /// </summary>
     private static NamedPipeServerStream InitiateServer(string pipeName, PipeDirection pipeDirection = PipeDirection.InOut, int maxInstances = 1)
-        => new(pipeName, pipeDirection, maxInstances, PipeTransmissionMode.Byte);
+        // Asynchronous, since every server here is driven through the async stream calls.
+        => new(pipeName, pipeDirection, maxInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
 
     /// <summary>
     ///     Creates a <see cref="NamedPipeClientStream"/>.

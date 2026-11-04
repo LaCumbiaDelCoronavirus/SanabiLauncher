@@ -46,8 +46,10 @@ There are **two processes**, and it matters constantly which one you're in:
 - **The launcher UI process** (`SS14.Launcher`, an Avalonia app). Logs in, browses/downloads engine + content,
   then spawns the game. Right before spawning it stands up the Sanabi IPC servers in
   [`SS14.Launcher/Models/Connector.cs`](SS14.Launcher/Models/Connector.cs): a config pipe that hands the game its
-  `SanabiConfig` as JSON (built from the user's CVars) and a string pipe that receives crash reports back. This
-  process is **not** patched and never loads `Sanabi.Framework` into itself.
+  `SanabiConfig` as JSON (built from the user's CVars), a string pipe that receives crash reports back, and a
+  per-launch *lifeline* pipe the game holds open for its whole life. The lifeline is how the launcher knows the game
+  died on a macOS release, where the process it started is `open`, not the game. This process is **not** patched and
+  never loads `Sanabi.Framework` into itself.
 - **The game process** (`SS14.Loader` → the engine). This is where Sanabi lives, and the only place assembly
   hiding / detection vectors matter — because this is where the engine (and anything it hosts) can enumerate
   the loaded assemblies and notice the fork.
@@ -296,9 +298,10 @@ A real payload must **not** contain the `//` comments below.
   to an empty/blank value when omitted — the launcher must never crash or hard-fail on missing or
   malformed data from this endpoint, only degrade gracefully (skip the affected feature and log a
   warning).
-- Bump `ConfigConstants.CurrentLauncherVersion` and add the new value to `allowedVersions`
-  together when cutting a new launcher release, otherwise existing users will be shown as
-  out-of-date.
+- Cut a release with `python sanabi_release.py [version]` (`--dry-run` to preview): from a clean, up-to-date
+  `master` it replaces the version from `Launcher.props` everywhere, commits it, and pushes `master` and the
+  `v<version>` tag together, which starts the Publish Release workflow. It only warns about `allowedVersions`, so
+  add the new value to the launcher info paste yourself, otherwise that release is shown as out-of-date.
 
 ## 6. CVars (configuration values)
 

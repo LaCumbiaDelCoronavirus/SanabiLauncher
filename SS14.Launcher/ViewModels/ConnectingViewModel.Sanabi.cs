@@ -1,9 +1,14 @@
+using System.Diagnostics;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using ReactiveUI;
 using Sanabi.Framework.Data;
 using Splat;
 using SS14.Launcher.Models;
 using SS14.Launcher.Models.Data;
+using SS14.Launcher.Models.SanabiCrash;
 using SS14.Launcher.Utility;
+using SS14.Launcher.Views;
 
 namespace SS14.Launcher.ViewModels;
 
@@ -50,6 +55,81 @@ public partial class ConnectingViewModel
         }
     }
 
+    /// <summary>
+    ///     The game failed, as opposed to the connection or update, so there's something to report and test.
+    /// </summary>
+    public bool ShowClientFailureActions => _connectorStatus == Connector.ConnectionStatus.ClientExited
+                                            && _connector.ClientExitedBadly;
+
+    /// <summary>
+    ///     The report takes a few seconds to appear, as it waits on the game and on macOS's own crash reporter.
+    /// </summary>
+    public bool HasCrashReport => _connector.CrashReport != null;
+
+    private CrashReportDialog? _crashDialog;
+
+    private string FormatClientFailure()
+    {
+        if (_connector.ClientFailure is not { } failure)
+            return _loc.GetString("connecting-status-client-crashed");
+
+        var reason = failure.ExitCode is { } exitCode
+            ? SanabiCrashReportBuilder.DescribeExitCode(exitCode)
+            : _loc.GetString("connecting-status-client-reason-unknown");
+
+        return failure.Kind switch
+        {
+            SanabiClientFailureKind.LaunchFailed => _loc.GetString("connecting-status-client-launch-failed", ("reason", reason)),
+            SanabiClientFailureKind.ExitedDuringStartup => _loc.GetString("connecting-status-client-exited-during-startup", ("reason", reason)),
+            SanabiClientFailureKind.NeverStarted => _loc.GetString("connecting-status-client-never-started"),
+            _ => _loc.GetString("connecting-status-client-crashed-running", ("reason", reason))
+        };
+    }
+
+    private void ShowCrashDialog(string? report)
+    {
+        // A second window for the same launch would just be the same report twice.
+        if (_crashDialog is { } existing)
+        {
+            if (report != null)
+                existing.SetReport(report);
+
+            existing.Activate();
+            return;
+        }
+
+        _crashDialog = new CrashReportDialog(report ?? "", _connector.RunTestLaunchAsync);
+        _crashDialog.Closed += (_, _) => _crashDialog = null;
+
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
+            _crashDialog.Show(mainWindow);
+        else
+            _crashDialog.Show();
+    }
+
+    // Binding; do not rename/remove/change signature
+    public void OpenCrashReport()
+    {
+        ShowCrashDialog(_connector.CrashReport);
+    }
+
+    // Binding; do not rename/remove/change signature
+    public void RunTestLaunch()
+    {
+        ShowCrashDialog(_connector.CrashReport);
+        _crashDialog?.StartTestLaunch();
+    }
+
+    // Binding; do not rename/remove/change signature
+    public void OpenLogDirectory()
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            UseShellExecute = true,
+            FileName = LauncherPaths.DirLogs
+        });
+    }
+
     // Binding; do not rename/remove/change signature
     public void SendToBackground()
     {
@@ -67,6 +147,7 @@ public partial class ConnectingViewModel
     {
         this.RaisePropertyChanged(nameof(CanSendToBackground));
         this.RaisePropertyChanged(nameof(BannerStatusText));
+        this.RaisePropertyChanged(nameof(ShowClientFailureActions));
 
         // Pop the overlay back up whenever it needs the user, so a background connection never silently stalls.
         if (!CanSendToBackground)

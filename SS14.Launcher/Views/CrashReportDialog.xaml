@@ -35,7 +35,22 @@
               Name="CopyButton"
               Click="Copy_OnClick"
               Content="{loc:Loc crash-report-button-copy}"/>
+      <Button DockPanel.Dock="Left"
+              Margin="4 0 0 0"
+              Click="OpenLogs_OnClick"
+              Content="{loc:Loc crash-report-button-open-logs}"/>
+      <Button DockPanel.Dock="Left"
+              Name="TestLaunchButton"
+              Margin="4 0 0 0"
+              Click="TestLaunch_OnClick"
+              ToolTip.Tip="{loc:Loc crash-report-button-test-launch-tooltip}"
+              Content="{loc:Loc crash-report-button-test-launch}"/>
     </DockPanel>
+    <TextBlock DockPanel.Dock="Bottom"
+               Name="TestLaunchStatus"
+               IsVisible="False"
+               TextWrapping="Wrap"
+               Margin="0 8 0 0"/>
     <TextBox Name="ReportText"
              IsReadOnly="True"
              AcceptsReturn="True"

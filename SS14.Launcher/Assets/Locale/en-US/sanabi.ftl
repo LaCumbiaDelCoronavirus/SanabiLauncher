@@ -8,6 +8,11 @@ add-favorite-window-button-add = Add
 add-favorite-window-example-address = ss14://example.com
 
 connecting-ok = Ok
+connecting-status-client-launch-failed = The launcher couldn't start the game ({ $reason }). Open the crash report for details, or run a test launch to find out why.
+connecting-status-client-exited-during-startup = The game closed while it was starting ({ $reason }). Open the crash report for details, or run a test launch to find out why.
+connecting-status-client-never-started = The game was launched, but it never started. Run a test launch to find out why.
+connecting-status-client-crashed-running = The game crashed ({ $reason }). Open the crash report for details.
+connecting-status-client-reason-unknown = no exit code
 
 ## Strings for the "crash report" dialog window, shown when the game client crashes
 
@@ -16,6 +21,21 @@ crash-report-heading = The game has crashed
 crash-report-description = Something went wrong and the game had to close. The details below may help figure out what happened - copy them if you're asking for help.
 crash-report-button-copy = Copy to Clipboard
 crash-report-button-close = Close
+crash-report-button-open-report = Crash Report
+crash-report-button-open-logs = Open Logs
+crash-report-button-test-launch = Run Test Launch
+crash-report-button-test-launch-tooltip = Checks your install, then starts the game offline with full logging. It doesn't log in or join a server. A game window may appear for up to 30 seconds.
+
+crash-report-test-stage-checks = Checking your install…
+crash-report-test-stage-launch = Starting the game with full logging. A window may appear for up to 30 seconds…
+crash-report-test-stage-launch-without-patches = That failed. Trying again with patching off…
+crash-report-test-saved = Report saved to: { $path }
+crash-report-test-verdict-passed = Test launch passed: the game ran normally. If it still fails on a server, the problem is probably specific to that server or your connection.
+crash-report-test-verdict-open-broken = The game runs when started directly, but macOS refuses to start it the normal way. The launcher will start it directly instead, so try connecting again. The game may show a different name and icon in the Dock.
+crash-report-test-verdict-patches-broken = The game only runs with patching off. Turn off patching, or the patch or mod you enabled most recently.
+crash-report-test-verdict-game-broken = The game failed however it was started. Copy this report when asking for help.
+crash-report-test-verdict-proxy-blocked = Your proxy profile isn't working, so nothing may connect. Fix or change the profile and try again.
+crash-report-test-verdict-nothing-to-test = The launch didn't get far enough to test. The install checks are below.
 
 # 'Example' address shown as a watermark in the address input box
 direct-connect-address-example = ss14://example.com:1212

@@ -8,8 +8,25 @@ cd "$BASEDIR"
 # Why do we invoke dotnet with the dll, instead of the apphost?
 # Because for some reason, the ARM64 apphost is broken when published by GitHub Actions.
 # Idk dude. This works.
+ARCH="$(uname -m)"
+
+# Normally inherited from the launcher, but only if macOS passes the environment through `open`.
+if [[ -z ${DOTNET_ROOT} ]]; then
+    export DOTNET_ROOT="$(cd ../../.. && pwd)/$ARCH/dotnet"
+fi
+
 DOTNET_PATH="$DOTNET_ROOT/dotnet"
-LOADER_PATH="../Resources/$(uname -m)/bin/SS14.Loader.dll"
+LOADER_PATH="../Resources/$ARCH/bin/SS14.Loader.dll"
+
+# exec failing here would otherwise vanish, since nothing is reading this script's output.
+if [[ ! -x "$DOTNET_PATH" || ! -f "$LOADER_PATH" ]]; then
+    MESSAGE="Cannot start game: dotnet='$DOTNET_PATH' loader='$LOADER_PATH' arch='$ARCH' pwd='$(pwd)'"
+    echo "$MESSAGE"
+    if [[ -n ${SS14_LOG_CLIENT} ]]; then
+        echo "$MESSAGE" > "$SS14_LOG_CLIENT"
+    fi
+    exit 127
+fi
 
 if [[ -z ${SS14_LOG_CLIENT} ]]; then
     # No log path

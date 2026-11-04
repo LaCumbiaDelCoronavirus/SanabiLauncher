@@ -10,6 +10,16 @@ add-favorite-window-button-add = Добавить
 add-favorite-window-example-address = ss14://example.com
 # Strings for the "connecting" menu that appears when connecting to a server.
 connecting-ok = Ок
+# Strings for the "connecting" menu that appears when connecting to a server.
+connecting-status-client-launch-failed = Лаунчер не смог запустить игру ({ $reason }). Откройте отчёт о сбое или запустите тестовый запуск, чтобы узнать причину.
+# Strings for the "connecting" menu that appears when connecting to a server.
+connecting-status-client-exited-during-startup = Игра закрылась во время запуска ({ $reason }). Откройте отчёт о сбое или запустите тестовый запуск, чтобы узнать причину.
+# Strings for the "connecting" menu that appears when connecting to a server.
+connecting-status-client-never-started = Игра была запущена, но так и не стартовала. Запустите тестовый запуск, чтобы узнать причину.
+# Strings for the "connecting" menu that appears when connecting to a server.
+connecting-status-client-crashed-running = Игра вылетела ({ $reason }). Подробности — в отчёте о сбое.
+# Strings for the "connecting" menu that appears when connecting to a server.
+connecting-status-client-reason-unknown = нет кода выхода
 # Strings for the "crash report" dialog window, shown when the game client crashes
 crash-report-window-title = Игра вылетела
 # Strings for the "crash report" dialog window, shown when the game client crashes
@@ -20,6 +30,34 @@ crash-report-description = Что-то пошло не так, и игру пр�
 crash-report-button-copy = Скопировать
 # Strings for the "crash report" dialog window, shown when the game client crashes
 crash-report-button-close = Закрыть
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-button-open-report = Отчёт о сбое
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-button-open-logs = Открыть логи
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-button-test-launch = Тестовый запуск
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-button-test-launch-tooltip = Проверяет установку, затем запускает игру офлайн с полным логированием. Вход в аккаунт и подключение к серверу не выполняются. Окно игры может появиться на срок до 30 секунд.
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-test-stage-checks = Проверка установки…
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-test-stage-launch = Запуск игры с полным логированием. Окно может появиться на срок до 30 секунд…
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-test-stage-launch-without-patches = Не удалось. Повторная попытка с отключёнными патчами…
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-test-saved = Отчёт сохранён: { $path }
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-test-verdict-passed = Тестовый запуск прошёл успешно: игра работает нормально. Если на сервере она всё равно не запускается, проблема, скорее всего, в этом сервере или в вашем подключении.
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-test-verdict-open-broken = Игра работает при прямом запуске, но macOS не даёт запустить её обычным способом. Лаунчер будет запускать её напрямую, так что попробуйте подключиться ещё раз. В Dock у игры могут отображаться другое название и значок.
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-test-verdict-patches-broken = Игра работает только с отключёнными патчами. Отключите патчи либо патч или мод, который вы включили последним.
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-test-verdict-game-broken = Игра не запускается никаким способом. Скопируйте этот отчёт, когда будете обращаться за помощью.
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-test-verdict-proxy-blocked = Ваш профиль прокси не работает, поэтому подключения заблокированы. Исправьте или смените профиль и попробуйте снова.
+# Strings for the "crash report" dialog window, shown when the game client crashes
+crash-report-test-verdict-nothing-to-test = Запуск не дошёл до этапа, на котором можно провести тест. Результаты проверки установки приведены ниже.
 # Strings for the "direct connect" dialog window.
 # 'Example' address shown as a watermark in the address input box
 direct-connect-address-example = ss14://example.com:1212

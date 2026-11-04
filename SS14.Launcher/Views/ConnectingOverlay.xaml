@@ -50,6 +50,15 @@
           </DockPanel>
         </Panel>
 
+        <WrapPanel HorizontalAlignment="Center" Margin="0 6 0 0" IsVisible="{Binding ShowClientFailureActions}">
+          <Button Margin="2" Content="{loc:Loc crash-report-button-open-report}"
+                  Command="{Binding OpenCrashReport}" IsVisible="{Binding HasCrashReport}" />
+          <Button Margin="2" Content="{loc:Loc crash-report-button-test-launch}"
+                  ToolTip.Tip="{loc:Loc crash-report-button-test-launch-tooltip}"
+                  Command="{Binding RunTestLaunch}" />
+          <Button Margin="2" Content="{loc:Loc crash-report-button-open-logs}" Command="{Binding OpenLogDirectory}" />
+        </WrapPanel>
+
         <views:RandomMessage Name="Messages" Margin="0 6 0 0" MaxWidth="250" />
       </StackPanel>
       <StackPanel Orientation="Vertical" IsVisible="{Binding IsAskingPrivacyPolicy}">

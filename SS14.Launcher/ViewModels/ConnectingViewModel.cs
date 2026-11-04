@@ -1,15 +1,12 @@
 using System;
 using System.Reactive.Linq;
 using System.Threading;
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using ReactiveUI;
 using Splat;
 using SS14.Launcher.Localization;
 using SS14.Launcher.Models;
 using SS14.Launcher.Utility;
-using SS14.Launcher.Views;
 
 namespace SS14.Launcher.ViewModels;
 
@@ -119,18 +116,11 @@ public partial class ConnectingViewModel : ViewModelBase
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(report =>
             {
+                this.RaisePropertyChanged(nameof(HasCrashReport));
+
                 if (report != null)
                     ShowCrashDialog(report);
             });
-    }
-
-    private static void ShowCrashDialog(string report)
-    {
-        var dialog = new CrashReportDialog(report);
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
-            dialog.Show(mainWindow);
-        else
-            dialog.Show();
     }
 
     public float Progress
@@ -218,7 +208,7 @@ public partial class ConnectingViewModel : ViewModelBase
             Connector.ConnectionStatus.NotAContentBundle => _loc.GetString("connecting-status-not-a-content-bundle"),
             Connector.ConnectionStatus.ProxyUnavailable => _loc.GetString("connecting-status-proxy-unavailable"),
             Connector.ConnectionStatus.ClientExited => _connector.ClientExitedBadly
-                ? _loc.GetString("connecting-status-client-crashed")
+                ? FormatClientFailure()
                 : "",
             _ => ""
         };

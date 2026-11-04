@@ -16,7 +16,6 @@ using Avalonia.Platform.Storage;
 using DynamicData;
 using ReactiveUI;
 using Sanabi.Framework.Data;
-using Sanabi.Framework.Game.Managers;
 using Sanabi.Framework.Game.Patches;
 using Sanabi.Framework.Proxy;
 using Serilog;
@@ -25,6 +24,7 @@ using SS14.Launcher.Api;
 using SS14.Launcher.Models.Data;
 using SS14.Launcher.Models.EngineManager;
 using SS14.Launcher.Models.Logins;
+using SS14.Launcher.Models.SanabiCrash;
 using SS14.Launcher.Models.SanabiProxy;
 using SS14.Launcher.Utility;
 
@@ -45,8 +45,6 @@ public partial class Connector : ReactiveObject
     private ConnectionStatus _status = ConnectionStatus.None;
     private bool _clientExitedBadly;
     private string? _crashReport;
-    private CancellationTokenSource? _crashCancelSource;
-    private Task<string?>? _crashReportTask;
     private readonly HttpClient _http;
 
     private TaskCompletionSource<PrivacyPolicyAcceptResult>? _acceptPrivacyPolicyTcs;
@@ -76,8 +74,8 @@ public partial class Connector : ReactiveObject
     }
 
     /// <summary>
-    ///     The crash report text received from the client process over IPC, if it crashed and
-    ///         managed to report it before exiting. Null if there was no crash report.
+    ///     The full report on a failed launch or crash, including anything the client sent over IPC
+    ///         before exiting. Null if nothing went wrong.
     /// </summary>
     public string? CrashReport
     {
@@ -358,37 +356,23 @@ public partial class Connector : ReactiveObject
             connectAddress = new UriBuilder("udp", relay.LocalEndPoint.Address.ToString(), relay.LocalEndPoint.Port).Uri;
         }
 
-        var clientProc = await ConnectLaunchClient(launchInfo, info, buildInfo, connectAddress, parsedAddr, contentBundle, gameProxy);
+        using var session = new ClientSession();
+        var clientProc = await ConnectLaunchClient(launchInfo, info, buildInfo, connectAddress, parsedAddr, contentBundle, gameProxy, session);
+        SanabiClientFailure? failure = null;
 
         try
         {
-            if (clientProc != null)
-            {
-                // Wait 300ms, if the client exits with a bad error code before that it's probably fucked.
-                var waitClient = clientProc.WaitForExitAsync(cancel);
-                var waitDelay = Task.Delay(300, cancel);
+            failure = await WatchClientAsync(clientProc, session, cancel);
 
-                await Task.WhenAny(waitDelay, waitClient);
-
-                if (!clientProc.HasExited)
-                {
-                    Status = ConnectionStatus.ClientRunning;
-                    await waitClient;
-                }
-
-                ClientExitedBadly = clientProc.ExitCode != 0;
-            }
-            else
-            {
-                ClientExitedBadly = true;
-            }
+            ClientFailure = failure;
+            ClientExitedBadly = failure != null;
         }
         finally
         {
-            // A crash report is only ever worth waiting on if a client process actually exited
-            // badly; otherwise there's nothing that could ever connect to the pipe. This runs even
-            // if cancelled above, so a cancelled/killed launch never leaves the crash pipe server
-            // dangling and blocking the next launch attempt.
+            // A crash report is only ever worth waiting on if the client actually failed; otherwise
+            // there's nothing that could ever connect to the pipe. This runs even if cancelled above,
+            // so a cancelled/killed launch never leaves the crash pipe server dangling and blocking
+            // the next launch attempt.
             //
             // Deliberately offloaded via Task.Run, not just fire-and-forget: cancelling a pending
             // pipe-connection wait calls CancellationTokenSource.Cancel(), whose registered-callback
@@ -397,12 +381,8 @@ public partial class Connector : ReactiveObject
             // from reflecting that the client has exited (e.g. on a normal, non-crashing quit, which
             // hits this path every time) - a plain `_ = FinalizeCrashReport(...)` would still run
             // that synchronous prefix inline before yielding.
-            //
-            // The listener is captured here rather than read from the fields later: by the time this finishes,
-            // the user may already have relaunched, and the fields then belong to that launch's listener.
-            var crashCancelSource = _crashCancelSource;
-            var crashReportTask = _crashReportTask;
-            _ = Task.Run(() => FinalizeCrashReport(crashCancelSource, crashReportTask, waitForReport: clientProc != null && ClientExitedBadly));
+            var engineVersion = launchInfo.ModuleInfo.SingleOrDefault(x => x.Module == "Robust").Version;
+            _ = Task.Run(() => FinalizeCrashReport(session, failure, engineVersion));
         }
 
         Status = ConnectionStatus.ClientExited;
@@ -440,47 +420,14 @@ public partial class Connector : ReactiveObject
         }
     }
 
-    /// <summary>
-    ///     Stops listening for a crash report from the client process. If one may be in flight,
-    ///         gives it a short grace period to arrive before giving up, so this can never hang
-    ///         forever waiting for a client that will never connect (e.g. a native crash, or one
-    ///         that exited badly for a reason unrelated to the loader's own exception handling).
-    /// </summary>
-    private async Task FinalizeCrashReport(CancellationTokenSource? crashCancelSource, Task<string?>? crashReportTask, bool waitForReport)
-    {
-        if (crashCancelSource == null || crashReportTask == null)
-            return;
-
-        if (waitForReport)
-            await Task.WhenAny(crashReportTask, Task.Delay(TimeSpan.FromSeconds(2)));
-
-        crashCancelSource.Cancel();
-
-        try
-        {
-            CrashReport = await crashReportTask;
-        }
-        catch (Exception e)
-        {
-            Log.Warning(e, "Failed waiting for client crash report");
-        }
-        finally
-        {
-            crashCancelSource.Dispose();
-
-            // Only clear the fields if a newer launch hasn't already replaced them with its own listener.
-            Interlocked.CompareExchange(ref _crashCancelSource, null, crashCancelSource);
-            Interlocked.CompareExchange(ref _crashReportTask, null, crashReportTask);
-        }
-    }
-
     private async Task<Process?> ConnectLaunchClient(ContentLaunchInfo launchInfo,
         ServerInfo? info,
         ServerBuildInformation? serverBuildInformation,
         Uri? connectAddress,
         Uri? parsedAddr,
         bool contentBundle,
-        SanabiProxyEndpoint? gameProxy)
+        SanabiProxyEndpoint? gameProxy,
+        ClientSession session)
     {
         var cVars = new List<(string, string)>();
 
@@ -578,11 +525,13 @@ public partial class Connector : ReactiveObject
             }
 
             // Launch client.
-            return await LaunchClient(launchInfo, args, cVars, gameProxy);
+            _lastLaunch = new SanabiLaunchRequest(launchInfo, args, cVars, gameProxy, compatMode, contentBundle);
+            return await LaunchClient(launchInfo, args, cVars, gameProxy, session);
         }
         catch (Exception e)
         {
             Log.Error(e, "Exception while starting client");
+            session.StartException = e;
             return null;
         }
     }
@@ -690,14 +639,20 @@ public partial class Connector : ReactiveObject
         ContentLaunchInfo launchInfo,
         IEnumerable<string> extraArgs,
         List<(string, string)> env,
-        SanabiProxyEndpoint? gameProxy)
+        SanabiProxyEndpoint? gameProxy,
+        ClientSession session,
+        bool direct = false,
+        PatchRunLevel? patchRunLevelOverride = null)
     {
         var pubKey = LauncherPaths.PathPublicKey;
         var engineVersion = launchInfo.ModuleInfo.Single(x => x.Module == "Robust").Version;
         var binPath = _engineManager.GetEnginePath(engineVersion);
         var sig = _engineManager.GetEngineSignature(engineVersion);
 
-        var startInfo = await GetLoaderStartInfo();
+        var startInfo = await GetLoaderStartInfo(direct);
+
+        session.ViaOpen = startInfo.FileName == "open";
+        session.Route = session.ViaOpen ? "open" : "direct";
 
         EnsureExecutable(startInfo.FileName);
 
@@ -745,8 +700,8 @@ public partial class Connector : ReactiveObject
             EnvVar("SS14_LOG_CLIENT", LauncherPaths.PathClientMacLog);
         }
 
-        // startInfo.RedirectStandardOutput = true;
-        // startInfo.RedirectStandardError = true;
+        startInfo.RedirectStandardOutput = true;
+        startInfo.RedirectStandardError = true;
 
         // Performance tweaks
         EnvVar("DOTNET_TieredPGO", "1");
@@ -777,46 +732,14 @@ public partial class Connector : ReactiveObject
 
         Log.Debug("Launch command: {LaunchCommand}", commandBuilder.ToString());
 
-        var sanabiConfig = new SanabiConfig().Configure(_cfg);
-        sanabiConfig.GameProxy = gameProxy;
-        _ = IpcManager.RunObjectPipeServer(IpcManager.SanabiIpcName, sanabiConfig, SanabiJsonContext.Default.SanabiConfig);
-
-        // In case a previous launch's crash-report cleanup is still winding down in the background.
-        try
-        {
-            _crashCancelSource?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            // That cleanup finished between the read and the cancel; nothing left to stop.
-        }
-
-        _crashCancelSource = new CancellationTokenSource();
-        _crashReportTask = IpcManager.RunStringPipeServer(IpcManager.SanabiCrashIpcName, _crashCancelSource.Token);
+        StartClientPipes(session, gameProxy, patchRunLevelOverride);
 
         var process = Process.Start(startInfo);
 
         if (process != null)
         {
             Log.Debug("Setting up manual-pipe logging for new client with PID {pid}.", process.Id);
-
-            // var fileStdout = new FileStream(
-            //     LauncherPaths.PathClientStdoutLog,
-            //     FileMode.Create,
-            //     FileAccess.Write,
-            //     FileShare.Delete | FileShare.ReadWrite,
-            //     4096,
-            //     FileOptions.Asynchronous);
-
-            // var fileStderr = new FileStream(
-            //     LauncherPaths.PathClientStderrLog,
-            //     FileMode.Create,
-            //     FileAccess.Write,
-            //     FileShare.Delete | FileShare.ReadWrite,
-            //     4096,
-            //     FileOptions.Asynchronous);
-
-            // PipeOutput(process, fileStdout, fileStderr);
+            CaptureClientOutput(session, process);
         }
 
         return process;
@@ -832,33 +755,6 @@ public partial class Connector : ReactiveObject
     private static void ConfigureMultiWindow(ContentLaunchInfo launchInfo, ProcessStartInfo startInfo)
     {
         // Implemented in private repo for Steam.
-    }
-
-    private static async void PipeOutput(Process process, Stream targetStdout, Stream targetStderr)
-    {
-        async Task DoPipe(StreamReader reader, Stream writer)
-        {
-            var readStream = reader.BaseStream;
-            var buf = new byte[4096];
-            while (true)
-            {
-                if (await reader.ReadLineAsync() is { } line)
-                    Console.WriteLine($"OUT> {line}");
-
-                var read = await readStream.ReadAsync(buf);
-                if (read == 0)
-                {
-                    Log.Debug("EOF, ending pipe logging for {pid}.", process.Id);
-                    return;
-                }
-
-                await writer.WriteAsync(buf.AsMemory(0, read));
-            }
-        }
-
-        await Task.WhenAll(
-            DoPipe(process.StandardOutput, targetStdout),
-            DoPipe(process.StandardError, targetStderr));
     }
 
     private static void PipeLogOutput(Process process)
@@ -907,7 +803,7 @@ public partial class Connector : ReactiveObject
     }
 
 #pragma warning disable 162
-    private static async Task<ProcessStartInfo> GetLoaderStartInfo()
+    private static async Task<ProcessStartInfo> GetLoaderStartInfo(bool direct = false)
     {
         string basePath;
 
@@ -972,7 +868,8 @@ public partial class Connector : ReactiveObject
                 var xattr = Process.Start(new ProcessStartInfo
                 {
                     FileName = "xattr",
-                    ArgumentList = { "-d", "com.apple.quarantine", appPath },
+                    // Recursive, as it's the files inside that macOS actually checks.
+                    ArgumentList = { "-d", "-r", "com.apple.quarantine", appPath },
                     RedirectStandardError = true,
                     RedirectStandardOutput = true
                 });
@@ -981,10 +878,17 @@ public partial class Connector : ReactiveObject
 
                 await xattr.WaitForExitAsync();
 
+                EnsureExecutable(Path.Combine(appPath, "Contents", "MacOS", "SS14"));
+
+                if (direct)
+                    return GetMacDirectStartInfo(appPath);
+
+                // -n: without it, a client that's still running gets focused instead, and this launch's
+                // arguments and environment are silently dropped.
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "open",
-                    ArgumentList = { appPath }
+                    ArgumentList = { "-n", appPath }
                 };
 
                 if (RuntimeInformation.OSArchitecture != Architecture.X64)
