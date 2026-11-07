@@ -124,29 +124,50 @@ public static partial class AssemblyLoadingManager
         if (lifecycle is null)
             return;
 
-        foreach (var entryPoint in _detachedEntryPoints)
-            lifecycle.Invoke(entryPoint, null);
+        InvokeDetachedEntryPoints(_detachedEntryPoints, lifecycle);
     }
 
     private static void BroadcastUpdatePostfix(object[] __args)
     {
-        foreach (var entryPoint in _detachedEntryPoints)
-            _gsUpdate.Invoke(entryPoint, [__args[0], __args[1]]); // (ModUpdateLevel level, FrameEventArgs args)
+        InvokeDetachedEntryPoints(_detachedEntryPoints, _gsUpdate, arguments: [__args[0], __args[1]]); // (ModUpdateLevel level, FrameEventArgs args)
     }
 
     private static void ShutdownPostfix()
     {
-        foreach (var entryPoint in _detachedEntryPoints)
+        InvokeDetachedEntryPoints(_detachedEntryPoints, _gsShutdown);
+        InvokeDetachedEntryPoints(_detachedEntryPoints, _gsDispose);
+    }
+
+    /// <summary>
+    ///     Calls a GameShared lifecycle method on each entry point. These run inside the engine's own startup, so
+    ///         an exception here would crash the game; instead the failing mod is logged and dropped, since a mod
+    ///         that failed part of its lifecycle can't be trusted with the rest.
+    /// </summary>
+    public static void InvokeDetachedEntryPoints(List<object> entryPoints, MethodInfo method, object?[]? arguments = null)
+    {
+        for (var index = 0; index < entryPoints.Count;)
         {
-            _gsShutdown.Invoke(entryPoint, null);
-            _gsDispose.Invoke(entryPoint, null);
+            var entryPoint = entryPoints[index];
+
+            try
+            {
+                method.Invoke(entryPoint, arguments);
+                index++;
+            }
+            catch (Exception exception)
+            {
+                var actual = exception is TargetInvocationException { InnerException: { } inner } ? inner : exception;
+                var type = entryPoint.GetType();
+                SanabiLogger.LogError($"Disabled mod {type.Assembly.GetName().Name}: {type.FullName}.{method.Name} failed: {actual}");
+                entryPoints.RemoveAt(index);
+            }
         }
     }
 
     private static void EntSysManInitPostfix()
     {
         while (_pendingEntSysManUpdateCallbacks.TryDequeue(out var callbackInfo))
-            callbackInfo.Invoke(null, null);
+            InvokeEntry(callbackInfo, null);
     }
 
     /// <summary>
