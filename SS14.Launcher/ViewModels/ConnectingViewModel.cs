@@ -31,6 +31,7 @@ public partial class ConnectingViewModel : ViewModelBase
                              _connectorStatus == Connector.ConnectionStatus.UpdateError ||
                              _connectorStatus == Connector.ConnectionStatus.NotAContentBundle ||
                              _connectorStatus == Connector.ConnectionStatus.ProxyUnavailable ||
+                             _connectorStatus == Connector.ConnectionStatus.LoginExpired ||
                              _connectorStatus == Connector.ConnectionStatus.ClientExited &&
                              _connector.ClientExitedBadly;
 
@@ -165,7 +166,8 @@ public partial class ConnectingViewModel : ViewModelBase
                                       _connectorStatus != Connector.ConnectionStatus.ConnectionFailed &&
                                       _connectorStatus != Connector.ConnectionStatus.UpdateError &&
                                       _connectorStatus != Connector.ConnectionStatus.NotAContentBundle &&
-                                      _connectorStatus != Connector.ConnectionStatus.ProxyUnavailable;
+                                      _connectorStatus != Connector.ConnectionStatus.ProxyUnavailable &&
+                                      _connectorStatus != Connector.ConnectionStatus.LoginExpired;
 
     public bool SpeedIndeterminate => _connectorStatus != Connector.ConnectionStatus.Updating || _updaterSpeed == null;
 
@@ -207,6 +209,7 @@ public partial class ConnectingViewModel : ViewModelBase
             Connector.ConnectionStatus.StartingClient => _loc.GetString("connecting-status-starting-client") + _reasonSuffix,
             Connector.ConnectionStatus.NotAContentBundle => _loc.GetString("connecting-status-not-a-content-bundle"),
             Connector.ConnectionStatus.ProxyUnavailable => _loc.GetString("connecting-status-proxy-unavailable"),
+            Connector.ConnectionStatus.LoginExpired => _loc.GetString("connecting-status-login-expired"),
             Connector.ConnectionStatus.ClientExited => _connector.ClientExitedBadly
                 ? FormatClientFailure()
                 : "",

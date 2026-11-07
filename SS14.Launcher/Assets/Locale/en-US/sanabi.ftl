@@ -211,6 +211,7 @@ proxy-banner-status-failed = NOT WORKING, all connections blocked
 proxy-banner-tooltip = Click to manage proxy profiles.
 
 connecting-status-proxy-unavailable = The proxy profile in use isn't working, so connecting is blocked. Fix it or pick another profile in the Proxy tab.
+connecting-status-login-expired = Your login has expired, so the game can't connect. Log in again and retry.
 
 ## Strings for the banner shown while a connection / content download runs in the background
 

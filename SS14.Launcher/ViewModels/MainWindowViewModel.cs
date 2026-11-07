@@ -12,6 +12,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using DynamicData;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
@@ -137,13 +138,32 @@ public sealed class MainWindowViewModel : ViewModelBase, IErrorOverlayOwner
 
         _loginMgr.AfterActiveAccountUpdate += (acc) =>
         {
+            // An expired account keeps (or gets) the login menu; TrySwitchToAccount shows the re-login screen for it.
+            // Anything else - a freshly logged-in account, or going account-less - leaves the login menu.
             if (acc is { } &&
-                !acc.ShouldShowLoginUponSwitching())
+                acc.ShouldShowLoginUponSwitching())
                 return;
 
             SelectedIndex = 0;
             SetLoginMenuShowing(false);
         };
+
+        _loginMgr.ActiveAccountLoginExpired += (acc) =>
+            Dispatcher.UIThread.Post(() => PromptReLogin(acc));
+    }
+
+    /// <summary>
+    ///     The auth server dropped the active account's login (e.g. after a long period of inactivity);
+    ///         deselect it and put the user on the re-login screen for it.
+    /// </summary>
+    private void PromptReLogin(LoggedInAccount account)
+    {
+        // Already handled (e.g. the user switched away, or this fired twice).
+        if (_loginMgr.ActiveAccount?.UserId != account.UserId)
+            return;
+
+        Log.Information("Login for {login} expired, prompting to log in again", account.LoginInfo);
+        TrySwitchToAccount(account);
     }
 
     private static bool _didStartingInit = false;

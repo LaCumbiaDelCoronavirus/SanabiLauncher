@@ -86,8 +86,10 @@ public class LoginViewModel : BaseLoginViewModel
                 foreach (var oldAuthServerInfo in oldLogin.Value.SupportedAuthServers!)
                     await authApi.LogoutTokenAsync(oldLogin.Value.LoginInfo.Token.Token, oldAuthServerInfo);
 
+                // Swap in the new token *before* activating: activating a still-expired account keeps the user on
+                // the login screen, which is exactly what re-logging in is supposed to get them out of.
+                loginMgr.UpdateToNewToken(oldLogin.Value, loginInfo.Token);
                 await loginMgr.TryRefreshTokensAndSetActiveAccountById(loginInfo.UserId);
-                loginMgr.UpdateToNewToken(loginMgr.ActiveAccount!, loginInfo.Token);
                 return true;
             }
 

@@ -446,9 +446,9 @@ public partial class Connector : ReactiveObject
 
             if (accStatus == AccountLoginStatus.Expired)
             {
+                // LoginManager.ActiveAccountLoginExpired already sent the user to the re-login screen.
                 Log.Error("Account login status is expired");
-                _loginManager.SetActiveAccount(null);
-                throw new ConnectException(ConnectionStatus.ConnectionFailed);
+                throw new ConnectException(ConnectionStatus.LoginExpired);
             }
 
             cVars.Add(("ROBUST_AUTH_TOKEN", account.LoginInfo.Token.Token));
@@ -937,7 +937,8 @@ public partial class Connector : ReactiveObject
         ClientExited,
         Cancelled,
         NotAContentBundle,
-        ProxyUnavailable
+        ProxyUnavailable,
+        LoginExpired
     }
 
     private sealed class ConnectException : Exception

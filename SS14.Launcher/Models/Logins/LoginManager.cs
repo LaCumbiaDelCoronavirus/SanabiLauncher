@@ -49,6 +49,13 @@ public sealed class LoginManager : ReactiveObject
     public Action<LoggedInAccount?>? AfterActiveAccountUpdate = null;
 
     /// <summary>
+    ///     Raised when the auth server rejects the active account's token (it expired or was revoked,
+    ///         e.g. after a long period of inactivity), so the user has to log in again.
+    ///         May be raised off the UI thread.
+    /// </summary>
+    public event Action<LoggedInAccount>? ActiveAccountLoginExpired;
+
+    /// <summary>
     ///     Sets a new account to be active in by it's ID, or logs out (if possible)
     ///         if none is provided.
     /// </summary>
@@ -161,7 +168,7 @@ public sealed class LoginManager : ReactiveObject
             {
                 // Oh hey, time expiry.
                 Log.Debug("Token for {login} expired due to time", l.LoginInfo);
-                l.SetStatus(AccountLoginStatus.Expired);
+                MarkExpired(l);
                 return;
             }
 
@@ -205,7 +212,7 @@ public sealed class LoginManager : ReactiveObject
         {
             // Oh hey, time expiry.
             Log.Debug("Token for {login} expired due to time", loginData.LoginInfo);
-            loginData.SetStatus(AccountLoginStatus.Expired);
+            MarkExpired(loginData);
             return;
         }
 
@@ -281,7 +288,23 @@ public sealed class LoginManager : ReactiveObject
             }
         }
 
+        // Decided only after every auth server answered, so a transient per-server state never prompts.
+        if (data.Status == AccountLoginStatus.Expired)
+            MarkExpired(data);
+
         return data.Status;
+    }
+
+    /// <summary>
+    ///     Marks a login as expired and, if it's the active account, raises
+    ///         <see cref="ActiveAccountLoginExpired"/> so the user gets prompted to log in again.
+    /// </summary>
+    private void MarkExpired(ActiveLoginData data)
+    {
+        data.SetStatus(AccountLoginStatus.Expired);
+
+        if (ActiveAccount?.UserId == data.UserId)
+            ActiveAccountLoginExpired?.Invoke(data);
     }
 
     public sealed class ActiveLoginData : LoggedInAccount
